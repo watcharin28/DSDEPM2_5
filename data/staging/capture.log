@@ -1,0 +1,61 @@
+2025-11-15 21:12:51,878 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 21:12:51,879 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 21:12:51,879 INFO: Scheduler started
+2025-11-15 21:13:23,832 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 21:13:23,833 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 21:13:23,833 INFO: Scheduler started
+2025-11-15 21:14:38,990 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 21:14:38,991 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 21:14:38,991 INFO: Scheduler started
+2025-11-15 21:15:23,935 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 21:15:23,936 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 21:15:23,936 INFO: Scheduler started
+2025-11-15 21:17:32,006 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 21:17:32,007 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 21:17:32,007 INFO: Scheduler started
+2025-11-15 21:26:05,214 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 21:26:05,214 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 21:26:05,215 INFO: Scheduler started
+2025-11-15 21:31:07,769 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:31:07,776 INFO: สร้างไฟล์ใหม่: data\staging\raw_airbkk.csv (2 แถว)
+2025-11-15 21:31:07,776 INFO: สำเร็จ: เพิ่ม 2 แถว
+2025-11-15 21:48:46,627 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:48:46,656 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:48:46,656 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 21:50:56,291 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:50:56,300 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:50:56,301 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 21:53:08,032 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:53:08,038 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:53:08,038 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 21:55:40,846 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:55:40,852 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:55:40,853 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 21:57:04,577 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:57:04,585 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:57:04,585 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 21:58:15,453 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:58:15,458 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:58:15,459 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 21:59:19,743 INFO: ดึงข้อมูล 15/11/2025 20:00 - 15/11/2025 21:00 → 2 แถว
+2025-11-15 21:59:19,750 INFO: ไม่มีข้อมูลใหม่
+2025-11-15 21:59:19,750 INFO: สำเร็จ: เพิ่ม 0 แถว
+2025-11-15 22:01:23,156 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 22:01:23,157 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 22:01:23,157 INFO: Scheduler started
+2025-11-15 22:01:25,802 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-15 22:01:25,802 INFO: Added job "run_pipeline" to job store "default"
+2025-11-15 22:01:25,803 INFO: Scheduler started
+2025-11-15 22:05:00,000 INFO: Running job "run_pipeline (trigger: cron[minute='5'], next run at: 2025-11-15 23:05:00 +07)" (scheduled at 2025-11-15 22:05:00+07:00)
+2025-11-15 22:05:00,699 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 2 แถว
+2025-11-15 22:05:00,700 INFO: เลือกคอลัมน์: 7 คอลัมน์
+2025-11-15 22:05:00,702 INFO: รวมเก่า 2 + ใหม่ 2 → 2 (เพิ่ม 0)
+2025-11-15 22:05:00,703 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-15 22:05:00,703 ERROR: Job "run_pipeline (trigger: cron[minute='5'], next run at: 2025-11-15 23:05:00 +07)" raised an exception
+Traceback (most recent call last):
+  File "C:\Pm2_5\venv\Lib\site-packages\apscheduler\executors\base.py", line 181, in run_coroutine_job
+    retval = await job.func(*job.args, **job.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Pm2_5\app\main.py", line 42, in run_pipeline
+    clean_and_save()
+TypeError: clean_and_save() missing 1 required positional argument: 'df'

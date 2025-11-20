@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+pandas
+pydantic
+python-dotenv
+apscheduler
+filelock
+requests
+filelock
+xgboost
+joblib
