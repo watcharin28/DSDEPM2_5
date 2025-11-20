@@ -16,31 +16,25 @@ import signal
 shutdown_event = asyncio.Event()
 
 def signal_handler(sig, frame):
-    """เรียกเมื่อกด Ctrl+C"""
-    logger.info("ได้รับสัญญาณหยุด (Ctrl+C) → กำลังปิดอย่างสงบ...")
+    logger.info("ได้รับสัญญาณหยุด → กำลังปิดอย่างสงบ...")
     shutdown_event.set()
 
 def setup_signal_handlers():
-    """
-    ตั้ง signal handler แบบปลอดภัย — ข้ามการตั้งเมื่อ asyncio event loop กำลังรัน
-    (เช่น เมื่อตัวโปรแกรมรันภายใต้ uvicorn/fastapi)
-    """
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            logger.info("Event loop กำลังรัน → ข้ามการตั้ง signal handlers (ASGI/uvicorn mode).")
+            logger.info("Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)")
             return
     except Exception:
-        # ถ้าเรียก get_event_loop() ผิดพลาด ก็ไปตั้ง handler ตามปกติ
         pass
 
     try:
         signal.signal(signal.SIGINT, signal_handler)
         if hasattr(signal, 'SIGTERM'):
             signal.signal(signal.SIGTERM, signal_handler)
-        logger.info("ตั้งค่า signal handler สำเร็จ (Windows/Linux)")
+        logger.info("ตั้งค่า signal handler สำเร็จ")
     except Exception as e:
-        logger.exception(f"setup_signal_handlers skipped/failed: {e}")
+        logger.exception(f"setup_signal_handlers skipped: {e}")
 
 # ------------------- CONFIG -------------------
 STAGING_DIR = Path("data/staging")
@@ -120,76 +114,58 @@ def arr_to_df_raw(arr):
     return df.astype(str)
 
 
-def append_to_master_no_dup(df_new, master_file=MASTER_FILE, key_col="Date_Time"):
+def append_to_master_always_overwrite(df_new, master_file=MASTER_FILE):
+    """
+    อัปเดตไฟล์ raw เสมอ ไม่สนว่ามี Date_Time ซ้ำหรือไม่
+    สำคัญมาก: ทำให้ค่าจริงจากกรมทับค่า None/ค่าเก่าได้ทันที
+    """
     os.makedirs(os.path.dirname(master_file), exist_ok=True)
     lock = FileLock(LOCK_FILE)
-    acquired = False
+
     try:
         lock.acquire(timeout=10)
-        acquired = True
 
-        if not os.path.exists(master_file):
+        if master_file.exists():
+            try:
+                df_master = pd.read_csv(master_file, dtype=str, encoding="utf-8-sig")
+            except EmptyDataError:
+                df_master = pd.DataFrame()
+        else:
+            df_master = pd.DataFrame()
+
+        if df_master.empty or "Date_Time" not in df_master.columns:
             df_new.to_csv(master_file, index=False, encoding="utf-8-sig")
             logger.info(f"สร้างไฟล์ใหม่: {master_file} ({len(df_new)} แถว)")
             return len(df_new)
 
-        try:
-            df_master = pd.read_csv(master_file, dtype=str, encoding="utf-8-sig")
-        except EmptyDataError:
-            logger.warning(f"ไฟล์ {master_file} ว่าง → เขียนทับ")
-            df_new.to_csv(master_file, index=False, encoding="utf-8-sig")
-            return len(df_new)
-        except Exception as e:
-            logger.error(f"อ่านไฟล์ล้มเหลว: {e} → เขียนทับ")
-            df_new.to_csv(master_file, index=False, encoding="utf-8-sig")
-            return len(df_new)
+        df_master["Date_Time"] = df_master["Date_Time"].astype(str)
+        df_new["Date_Time"] = df_new["Date_Time"].astype(str)
 
-        if df_master.empty or len(df_master.columns) == 0:
-            logger.info(f"ไฟล์มีแต่ header → เขียนทับ")
-            df_new.to_csv(master_file, index=False, encoding="utf-8-sig")
-            return len(df_new)
+        # รวมข้อมูลเก่า + ใหม่ → ลบซ้ำโดยเก็บแถวล่าสุด
+        df_combined = pd.concat([df_master, df_new], ignore_index=True)
+        df_combined = df_combined.drop_duplicates(subset=["Date_Time"], keep="last")
+        df_combined = df_combined.sort_values("Date_Time", ascending=False)
 
-        if key_col not in df_master.columns:
-            logger.warning(f"คอลัมน์ {key_col} หาย - เขียนทับ")
-            df_new.to_csv(master_file, index=False, encoding="utf-8-sig")
-            return len(df_new)
+        df_combined.to_csv(master_file, index=False, encoding="utf-8-sig")
+        logger.info(f"อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม {len(df_new)} แถว (ทับค่าจริงทันที)")
 
-        df_master[key_col] = df_master[key_col].astype(str)
-        df_new[key_col] = df_new[key_col].astype(str)
-
-        existing = set(df_master[key_col])
-        df_to_add = df_new[~df_new[key_col].isin(existing)]
-        if df_to_add.empty:
-            logger.info("ไม่มีข้อมูลใหม่")
-            return 0
-
-        for c in df_master.columns:
-            if c not in df_to_add.columns:
-                df_to_add[c] = ""
-        df_to_add = df_to_add[df_master.columns]
-
-        df_to_add.to_csv(master_file, mode="a", header=False, index=False, encoding="utf-8-sig")
-        logger.info(f"เพิ่ม {len(df_to_add)} แถว → {master_file}")
-        return len(df_to_add)
+        return len(df_new)
 
     except Timeout:
         logger.error("ล็อกไฟล์ล้มเหลว - มี process อื่นรันอยู่")
         return 0
     except Exception as e:
-        logger.exception(f"append_to_master_no_dup ล้มเหลว: {e}")
+        logger.exception(f"append_to_master_always_overwrite ล้มเหลว: {e}")
         return 0
     finally:
-        if acquired:
-            try:
-                lock.release()
-                logger.debug("ปล่อย lock สำเร็จ")
-            except:
-                pass
+        try:
+            lock.release()
+        except:
+            pass
 
 
 async def fill_missing_hours(lookback_hours=48):
     if shutdown_event.is_set():
-        logger.info("หยุด fill_missing_hours ก่อนเริ่ม")
         return 0
 
     if not MASTER_FILE.exists():
@@ -220,7 +196,7 @@ async def fill_missing_hours(lookback_hours=48):
         return 0
 
     expected = pd.date_range(start_fill, end_fill, freq='h', tz=ZoneInfo(TZ))
-    existing = set(df_master["dt"].dt.floor('h')) if not df_master.empty else set()
+    existing = set(df_master["dt"].dt.floor('h')) if "dt" in df_master.columns and not df_master.empty else set()
     missing_hours = [dt for dt in expected if dt.floor('h') not in existing]
 
     if not missing_hours:
@@ -232,18 +208,15 @@ async def fill_missing_hours(lookback_hours=48):
     total_added = 0
     for dt in missing_hours:
         if shutdown_event.is_set():
-            logger.info("หยุด fill_missing_hours เนื่องจาก Ctrl+C")
             break
 
         try:
             arr, _, _ = fetch_api_data(start=dt, end=dt + timedelta(hours=1))
             if arr:
                 df_new = arr_to_df_raw(arr)
-                added = append_to_master_no_dup(df_new)
+                added = append_to_master_always_overwrite(df_new)
                 total_added += added
                 logger.info(f"เติม {dt.strftime('%Y-%m-%d %H:%M')} → +{added}")
-            else:
-                logger.info(f"ไม่มีข้อมูลสำหรับ {dt.strftime('%Y-%m-%d %H:%M')}")
         except Exception as e:
             logger.error(f"ดึง {dt} ล้มเหลว: {e}")
 
@@ -254,31 +227,26 @@ async def fill_missing_hours(lookback_hours=48):
     return total_added
 
 
-# tasks/fetch_api.py
 def main():
-    # อย่าเรียก setup_signal_handlers() บังคับที่นี่ — ฟังก์ชันนี้ปลอดภัยอยู่แล้ว (จะข้ามถ้าเป็น ASGI)
     try:
         setup_signal_handlers()
     except Exception:
-        # ถ้าเรียกแล้วมีปัญหา ให้ข้าม (ไม่ให้หยุดการทำงาน)
-        logger.debug("setup_signal_handlers() failed or skipped")
+        logger.debug("setup_signal_handlers skipped")
 
     try:
         arr, start, end = fetch_api_data()
         logger.info(f"ดึง {start} - {end} → {len(arr)} แถว")
 
         if len(arr) == 0 and FETCH_RETRY:
-            logger.info(f"ไม่มีข้อมูล → รอ {RETRY_SLEEP_SECONDS} วินาที (ตรวจ shutdown ทุกวินาที)")
-            # เปลี่ยนการรอเป็น loop สั้น ๆ เพื่อตรวจ shutdown_event
+            logger.info(f"ไม่มีข้อมูล → รอ {RETRY_SLEEP_SECONDS} วินาที")
             waited = 0
             while waited < RETRY_SLEEP_SECONDS:
                 if shutdown_event.is_set():
-                    logger.info("ถูกสั่งปิดขณะรอ retry → ยกเลิกการ retry")
+                    logger.info("ถูกสั่งหยุดขณะรอ retry")
                     break
                 time.sleep(1)
                 waited += 1
             else:
-                # ถ้าไม่ถูกยกเลิก ให้ลอง fetch อีกครั้ง
                 arr, start, end = fetch_api_data()
 
         if len(arr) == 0:
@@ -286,11 +254,8 @@ def main():
             return
 
         df_new = arr_to_df_raw(arr)
-        added = append_to_master_no_dup(df_new)
-        logger.info(f"สำเร็จ: เพิ่ม {added} แถว (ปัจจุบัน)")
-
-        # ห้าม asyncio.run() ที่นี่!
-        # ปล่อยให้ app/main.py เรียก await fill_missing_hours()
+        added = append_to_master_always_overwrite(df_new)  # แก้ตรงนี้!
+        logger.info(f"สำเร็จ: อัปเดต/เพิ่ม {added} แถว")
 
     except Exception as e:
         logger.exception("ดึงข้อมูลล้มเหลว")

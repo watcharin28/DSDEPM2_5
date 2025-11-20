@@ -26,6 +26,44 @@ ROLL_WINDOWS = [3, 6, 12, 24]
 DB_FETCH_LIMIT = 400  # จำนวนแถวที่ดึงจาก DB (เพียงพอสำหรับ lag/rolling)
 # ค่า fallback ถ้าโมเดลไม่มี metadata ให้ตั้งเป็น 168 (ตามที่โมเดลของคุณเคยคาดไว้)
 FALLBACK_TARGET_FEATURE_COUNT = 168
+def pm25_to_aqi_th(pm25: float) -> dict:
+    """
+    แปลงค่า PM2.5 (µg/m³) เป็น AQI + ระดับคุณภาพอากาศ
+    ตามเกณฑ์ที่ให้มา:
+
+    ช่วงค่า AQI      ระดับคุณภาพอากาศ                 ช่วงค่า PM2.5 (µg/m³)
+    0 - 25           ดีมาก                              0 - 15
+    26 - 50          ดี                                 16 - 25
+    51 - 100         ปานกลาง                           26 - 37.5
+    101 - 200        เริ่มมีผลกระทบต่อสุขภาพ          38 - 90
+    >200             มีผลกระทบต่อสุขภาพ               > 90
+
+    ใช้ linear interpolation ภายในแต่ละช่วง AQI
+    """
+    if pm25 is None:
+        return {"aqi": None, "level": None}
+
+    pm25 = max(0.0, float(pm25))
+
+    # (C_low, C_high, I_low, I_high, level)
+    ranges = [
+        (0.0,   15.0,   0,   25,  "ดีมาก"),
+        (15.0,  25.0,  26,   50,  "ดี"),
+        (25.0,  37.5,  51,  100,  "ปานกลาง"),
+        (37.5,  90.0, 101,  200,  "เริ่มมีผลกระทบต่อสุขภาพ"),
+        (90.0, 250.0, 201,  300,  "มีผลกระทบต่อสุขภาพ"),  # กำหนดบนสุดที่ 300
+    ]
+
+    for C_low, C_high, I_low, I_high, level in ranges:
+        if pm25 <= C_high:
+            if C_high == C_low:
+                aqi = I_high
+            else:
+                aqi = (I_high - I_low) / (C_high - C_low) * (pm25 - C_low) + I_low
+            return {"aqi": int(round(aqi)), "level": level}
+
+    # ถ้าเกินช่วงบนสุดมาก ๆ
+    return {"aqi": 300, "level": "มีผลกระทบต่อสุขภาพ"}
 
 # ========================================
 #               FASTAPI APP
@@ -95,7 +133,7 @@ async def run_pipeline():
         logging.info("Fetch สำเร็จ")
 
         added = await fill_missing_hours(lookback_hours=48)
-        logging.info(f"เติมข้อมูลย้อนหลัง: +{added} แถว")
+        # logging.info(f"เติมข้อมูลย้อนหลัง: +{added} แถว")
 
         added = format_raw()
         if added:
@@ -159,8 +197,17 @@ async def root():
 @app.get("/latest")
 async def latest_readings(db=Depends(get_db)):
     try:
-        readings = await upsert_air_reading(db, limit=10)
-        return {"data": [r.__dict__ for r in readings]}
+        query = text('SELECT * FROM air_readings ORDER BY "Date_Time" DESC LIMIT 10')
+        result = await db.execute(query)
+        rows = result.fetchall()
+
+        # แปลงเป็น list of dict ให้สวย
+        data = []
+        for row in rows:
+            # ใช้ _mapping (SQLAlchemy 2.0 style)
+            data.append(dict(row._mapping))
+
+        return {"data": data[::-1]}  # เรียงจากเก่า→ใหม่ (หรือไม่กลับก็ได้)
     except Exception as e:
         logging.exception("latest_readings error")
         raise HTTPException(status_code=500, detail=str(e))
@@ -183,227 +230,109 @@ async def predict_next_24h():
 
     async with AsyncSessionLocal() as db:
         try:
-            # 1) ดึงข้อมูลย้อนหลัง (เรียงจากเก่า->ใหม่)
-            query = text(f'SELECT "Date_Time", "PM2.5 (µg/m³)" as pm25 FROM air_readings ORDER BY "Date_Time" DESC LIMIT {DB_FETCH_LIMIT}')
+            query = text('''
+                SELECT 
+                    "Date_Time",
+                    "PM2.5 (µg/m³)" as pm25,
+                    "PM10 (µg/m³)" as pm10,
+                    "WS (m/s)" as ws,
+                    "WD" as wd,
+                    "Temp (°C)" as temp,
+                    "RH (%)" as rh,
+                    "BP (mBar)" as bp
+                FROM air_readings 
+                ORDER BY "Date_Time" DESC 
+                LIMIT 200
+            ''')
             result = await db.execute(query)
             rows = result.fetchall()
-            if not rows:
-                raise HTTPException(400, "ไม่มีข้อมูลในฐานข้อมูล")
-            df = pd.DataFrame(rows, columns=["Date_Time", "pm25"])
+            if len(rows) < 60:
+                raise HTTPException(400, "ข้อมูลไม่พอสำหรับพยากรณ์")
+
+            df = pd.DataFrame(rows, columns=[
+                "Date_Time","pm25","pm10","ws","wd","temp","rh","bp"
+            ])
             df["Date_Time"] = pd.to_datetime(df["Date_Time"])
             df = df.sort_values("Date_Time").reset_index(drop=True)
 
-            # 2) เช็คว่ามีแถวเพียงพอสำหรับ lag
-            min_rows = MAX_LAG + 1
-            if len(df) < min_rows:
-                raise HTTPException(400, f"ข้อมูลไม่พอ: ต้องมีอย่างน้อย {min_rows} แถวเพื่อคำนวณ lag_{MAX_LAG}. ตอนนี้มี {len(df)} แถว")
+            # ===== ค่าปัจจุบันจาก DB (ก่อนทำ lag/dropna) =====
+            current_row = df.iloc[-1]
+            current_pm25 = float(current_row["pm25"])
+            current_time = current_row["Date_Time"]
+            current_aqi_info = pm25_to_aqi_th(current_pm25)
 
-            # 3) สร้าง features: lag, rolling, time
-            for i in range(1, MAX_LAG + 1):
-                df[f'lag_{i}'] = df['pm25'].shift(i)
+            # ===== เก็บช่วงค่าจริงของ PM2.5 สำหรับ inverse scaling =====
+            pm25_min = float(df["pm25"].min())
+            pm25_max = float(df["pm25"].max())
+            if pm25_max == pm25_min:
+                pm25_min = 0.0
 
-            for w in ROLL_WINDOWS:
-                df[f'roll_mean_{w}'] = df['pm25'].rolling(w).mean()
-                df[f'roll_std_{w}'] = df['pm25'].rolling(w).std()
+            # ===== Lag 24 สำหรับ 7 ตัวแปร (ตรงกับตอน train) =====
+            features_order = ["pm10", "ws", "wd", "temp", "rh", "bp", "pm25"]
+            for lag in range(1, 25):
+                for col in features_order:
+                    df[f"{col}_lag_{lag}"] = df[col].shift(lag)
 
-            df['hour'] = df['Date_Time'].dt.hour
-            df['weekday'] = df['Date_Time'].dt.weekday
-            df['month'] = df['Date_Time'].dt.month
-            # is_weekend เป็น optional — เพิ่มถ้าโมเดลเทรนด้วย
-            df['is_weekend'] = df['weekday'].isin([5, 6]).astype(int)
+            df = df.dropna().reset_index(drop=True)
+            latest = df.iloc[-1]
 
-            # one-hot
-            df = pd.get_dummies(df, columns=['hour', 'weekday', 'month'], prefix=['hour', 'weekday', 'month'], dtype=int)
+            expected_features = []
+            for col in features_order:
+                for lag in range(1, 25):
+                    expected_features.append(f"{col}_lag_{lag}")
 
-            # เติม dummy ที่ขาด (รับประกัน hour_0..23, weekday_0..6, month_1..12)
-            for h in range(24):
-                col = f'hour_{h}'
-                if col not in df.columns:
-                    df[col] = 0
-            for d in range(7):
-                col = f'weekday_{d}'
-                if col not in df.columns:
-                    df[col] = 0
-            for m in range(1, 13):
-                col = f'month_{m}'
-                if col not in df.columns:
-                    df[col] = 0
+            if len(expected_features) != 168:
+                raise ValueError(f"Expected 168 features แต่ได้ {len(expected_features)}")
 
-            # 4) dropna แล้วเอา latest
-            df_clean = df.dropna().reset_index(drop=True)
-            if df_clean.empty:
-                raise HTTPException(400, "หลัง dropna แล้วไม่มีแถวเหลือ — ข้อมูลย้อนหลังอาจไม่พอสำหรับ rolling/lag")
+            X = np.array(
+                [latest.get(col, 0.0) for col in expected_features],
+                dtype=np.float32
+            ).reshape(1, -1)
 
-            latest = df_clean.iloc[-1]
-
-            # 5) สร้าง expected feature order (ชัดเจน)
-            expected = []
-            expected += [f'lag_{i}' for i in range(1, MAX_LAG + 1)]
-            for w in ROLL_WINDOWS:
-                expected.append(f'roll_mean_{w}')
-                expected.append(f'roll_std_{w}')
-            expected += [f'hour_{h}' for h in range(24)]
-            expected += [f'weekday_{d}' for d in range(7)]
-            expected += [f'month_{m}' for m in range(1, 13)]
-            # ถ้าตอนเทรนมี 'is_weekend' ให้เพิ่ม (uncomment ถ้าจำเป็น)
-            # expected.append('is_weekend')
-
-            # 6) เติมคอลัมน์ missing เป็น 0 เพื่อความปลอดภัย และจัด feature_cols
-            for col in expected:
-                if col not in df_clean.columns:
-                    df_clean[col] = 0
-
-            # เก็บคอลัมน์อื่นๆ ที่เหลือ (ถ้ามี) ต่อท้าย (จะไม่ตัดทิ้งทันที)
-            remaining = [c for c in df_clean.columns if c not in (["Date_Time", "pm25"] + expected)]
-            feature_cols = expected + sorted(remaining)
-
-            # 7) สร้าง X จาก latest ตาม feature_cols
-            X = latest[feature_cols].astype(float).values.reshape(1, -1)
-            actual_n = X.shape[1]
-
-            # 8) หาจำนวน features ที่โมเดลคาดไว้ (fallback เป็นค่าที่ตั้งไว้)
-            model_n = MODEL_EXPECTED_N if MODEL_EXPECTED_N is not None else FALLBACK_TARGET_FEATURE_COUNT
-            logging.info(f"feature built: actual_n={actual_n}, model_expected_n={model_n}")
-
-            # 9) ปรับให้เข้ากับโมเดล (เติม 0 หรือ ตัดคอลัมน์ท้าย) — ทำเฉพาะเมื่อ model_n เป็น int
-            if model_n is not None:
-                if actual_n < model_n:
-                    pad_n = model_n - actual_n
-                    logging.warning(f"ฟีเจอร์น้อยกว่าโมเดลต้องการ: เติม {pad_n} ค่า 0 ต่อท้าย")
-                    X = np.hstack([X, np.zeros((1, pad_n))])
-                    feature_cols += [f'pad_{i}' for i in range(pad_n)]
-                    actual_n = X.shape[1]
-                elif actual_n > model_n:
-                    logging.warning(f"ฟีเจอร์มากกว่าโมเดลต้องการ: ตัด {actual_n - model_n} ค่า ท้ายรายการ")
-                    X = X[:, :model_n]
-                    feature_cols = feature_cols[:model_n]
-                    actual_n = X.shape[1]
-
-            # ถ้าไม่มี metadata และเราอยากบังคับ exact count ให้ใช้ FALLBACK_TARGET_FEATURE_COUNT:
-            if MODEL_EXPECTED_N is None:
-                if actual_n != FALLBACK_TARGET_FEATURE_COUNT:
-                    raise HTTPException(500, f"Feature mismatch (no model metadata): ได้ {actual_n}, แต่คาดว่าจะเป็น {FALLBACK_TARGET_FEATURE_COUNT}. ตรวจสอบ expected list หรือโมเดล")
-
-            # 10) เริ่มพยากรณ์ autoregressive 24 ชม. (พร้อม debug)
             preds = []
-            raw_preds = []
-            inv_log1p_preds = []
             current = X.copy()
-            col_index = {c: i for i, c in enumerate(feature_cols)}
-            base_dt = df_clean["Date_Time"].iloc[-1]
-            recent_vals = df_clean['pm25'].tail(24).values if len(df_clean) >= 24 else df_clean['pm25'].values
-            recent_mean = float(np.mean(recent_vals)) if len(recent_vals) > 0 else None
+            base_time = df["Date_Time"].iloc[-1]
 
-            for h in range(24):
-                try:
-                    raw_val = float(MODEL.predict(current)[0])
-                except Exception as ex:
-                    logging.exception("Predict call failed")
-                    raise HTTPException(500, f"เรียกโมเดลพยากรณ์ล้มเหลว: {ex}")
+            # เตรียม index ของ pm25 lag เอาไว้ใช้ใน loop
+            pm25_indices = [expected_features.index(f"pm25_lag_{i}") for i in range(1, 25)]
 
-                # เก็บไว้ debug
-                raw_preds.append(raw_val)
+            for step in range(24):
+                pred_scaled = float(MODEL.predict(current)[0])
 
-                # --- แปลงกลับจาก scaled → µg/m³ ---
-                SCALER_MAX = 346.0
-                actual_pred = raw_val * SCALER_MAX
-                final_pred = max(0.0, actual_pred)
-                preds.append(round(final_pred, 1))
+                # ===== inverse scale แบบสมจริง (อิงช่วง recent data) =====
+                pred_actual = pred_scaled * (pm25_max - pm25_min) + pm25_min
+                pred_actual = max(0.0, pred_actual)
+                preds.append(round(pred_actual, 1))
 
-                # --- สำคัญ: อัปเดต lag ถัดไปด้วย scaled value (ไม่ใช่ actual!) ---
-                if 'lag_1' in col_index:
-                    lag_indices = [col_index.get(f'lag_{i}') for i in range(1, MAX_LAG + 1)]
-                    lag_indices = [idx for idx in lag_indices if idx is not None]
+                # ===== update lag เฉพาะ PM2.5 =====
+                current[0, pm25_indices] = np.roll(current[0, pm25_indices], -1)
+                current[0, pm25_indices[0]] = pred_scaled
 
-                    if len(lag_indices) == MAX_LAG:
-                        current[0, lag_indices] = np.roll(current[0, lag_indices], -1)
-                        current[0, lag_indices[0]] = raw_val  # ใช้ scaled value!
-                    elif len(lag_indices) > 0:
-                        current[0, lag_indices] = np.roll(current[0, lag_indices], -1)
-                        current[0, lag_indices[0]] = raw_val
+            hours = [
+                (datetime.now() + timedelta(hours=i+1)).strftime("%H:%M")
+                for i in range(24)
+            ]
 
-                # --- อัปเดต time features (เหมือนเดิม) ---
-                future_dt = base_dt + timedelta(hours=h+1)
-                new_hour = future_dt.hour
-                new_wd = future_dt.weekday()
-                new_m = future_dt.month
-
-                for i in range(24):
-                    cname = f'hour_{i}'
-                    if cname in col_index:
-                        current[0, col_index[cname]] = 1 if i == new_hour else 0
-                for i in range(7):
-                    cname = f'weekday_{i}'
-                    if cname in col_index:
-                        current[0, col_index[cname]] = 1 if i == new_wd else 0
-                for i in range(1, 13):
-                    cname = f'month_{i}'
-                    if cname in col_index:
-                        current[0, col_index[cname]] = 1 if i == new_m else 0
-                if 'is_weekend' in col_index:
-                    current[0, col_index['is_weekend']] = 1 if new_wd in (5, 6) else 0
-
-                # --- update time dummies (hour, weekday, month) for next step ---
-                future_dt = base_dt + timedelta(hours=h+1)
-                new_hour = future_dt.hour
-                new_wd = future_dt.weekday()
-                new_m = future_dt.month
-
-                for i in range(24):
-                    cname = f'hour_{i}'
-                    if cname in col_index:
-                        current[0, col_index[cname]] = 1 if i == new_hour else 0
-                for i in range(7):
-                    cname = f'weekday_{i}'
-                    if cname in col_index:
-                        current[0, col_index[cname]] = 1 if i == new_wd else 0
-                for i in range(1, 13):
-                    cname = f'month_{i}'
-                    if cname in col_index:
-                        current[0, col_index[cname]] = 1 if i == new_m else 0
-                if 'is_weekend' in col_index:
-                    current[0, col_index['is_weekend']] = 1 if new_wd in (5, 6) else 0
-
-            # หลัง loop: วิเคราะห์ผล raw vs inv_log1p
-            raw_mean = float(np.mean(raw_preds)) if raw_preds else None
-            inv_log1p_mean = None
-            inv_log1p_valid = False
-            if any(v is not None for v in inv_log1p_preds):
-                inv_vals = [v for v in inv_log1p_preds if v is not None]
-                if inv_vals:
-                    inv_log1p_mean = float(np.mean(inv_vals))
-                    # heuristic: ถ้า inv_log1p_mean อยู่ในช่วงที่สมเหตุสมผลเมื่อเทียบ recent_mean -> mark as plausible
-                    if recent_mean is not None and recent_mean > 0:
-                        ratio = inv_log1p_mean / recent_mean
-                        if 0.2 <= ratio <= 5:
-                            inv_log1p_valid = True
-
-            debug_out = {
-                "model_expected_n": MODEL_EXPECTED_N,
-                "used_feature_count": actual_n,
-                "feature_cols_sample": feature_cols[:10] + (feature_cols[-10:] if len(feature_cols) > 20 else []),
-                "recent_mean": recent_mean,
-                "raw_preds_sample": [round(float(x), 6) for x in raw_preds],
-                "raw_mean": round(raw_mean, 6) if raw_mean is not None else None,
-                "inv_log1p_sample": [round(float(x), 6) if x is not None else None for x in inv_log1p_preds],
-                "inv_log1p_mean": round(inv_log1p_mean, 6) if inv_log1p_mean is not None else None,
-                "inv_log1p_plausible": inv_log1p_valid
-            }
-
-            hours = [(datetime.now() + timedelta(hours=i+1)).strftime("%H:%M") for i in range(24)]
-            max_val = max(preds) if preds else 0.0
-            level = "ดี" if max_val <= 25 else "ปานกลาง" if max_val <= 50 else "ปานกลาง-อันตราย" if max_val <= 90 else "อันตราย"
+            max_val = max(preds)
+            max_aqi_info = pm25_to_aqi_th(max_val)
 
             return {
-                "forecast_24h": dict(zip(hours, preds)),
-                "max_pm25_next_24h": round(max_val, 1),
-                "alert_level": level,
-                "message": f"24 ชม. ข้างหน้า ฝุ่นสูงสุด {max_val:.1f} µg/m³ → {level} ค่ะ"
+                # --- ค่าปัจจุบันจากสถานี (real data) ---
+                "ค่าฝุ่น pm2.5 ปัจจุบัน": round(current_pm25, 1),
+                "ดัชนีคุณภาพอากาศปัจจุบัน": current_aqi_info["aqi"],
+                "ระดับคุณภาพอากาศปัจจุบัน": current_aqi_info["level"],
                 
+
+                # --- พยากรณ์ 24 ชั่วโมงข้างหน้า (PM2.5 ตามชั่วโมง) ---
+                "พยากรณ์ฝุ่น_24ชั่วโมง": dict(zip(hours, preds)),
+
+                # --- สรุป 24 ชั่วโมงข้างหน้า ---
+                "PM2.5 สูงสุดที่คาดการณ์": round(max_val, 1),
+                "AQI สูงสุดที่คาดการณ์": max_aqi_info["aqi"],
+                "ระดับโดยรวมจากค่าสูงสุด": max_aqi_info["level"],
+                "สรุปผล": f"24 ชม. ข้างหน้า ฝุ่นPM2.5สูงสุด {max_val:.1f} µg/m³ → {max_aqi_info['level']}",
             }
 
-        except HTTPException:
-            raise
         except Exception as e:
             logging.exception("Predict error")
             raise HTTPException(500, f"พยากรณ์ล้มเหลว: {str(e)}")

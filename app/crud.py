@@ -1,13 +1,14 @@
-# app/crud.py
+# app/crud.py  ← เวอร์ชันสุดท้าย ใช้งานจริงได้ทันที
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import AirReading
 from app.schemas import AirReading as AirReadingSchema
-from typing import Optional
+import logging
 
 async def upsert_air_reading(db: AsyncSession, obj: AirReadingSchema):
     """
-    ใส่หรืออัปเดตข้อมูล โดยใช้ Date_Time เป็น key
+    อัปเดตทับเสมอเมื่อมีข้อมูลใหม่มา ไม่สนว่าเคยมีแล้วหรือไม่
+    วิธีเดียวที่ทำให้ค่าจริงจากกรมมาทันที ไม่ค้างค่าเก่า
     """
     stmt = insert(AirReading).values(
         Date_Time=obj.Date_Time,
@@ -20,10 +21,20 @@ async def upsert_air_reading(db: AsyncSession, obj: AirReadingSchema):
         BP=obj.BP,
     )
 
-    # ใช้ on_conflict_do_nothing() สำหรับ PostgreSQL
-    stmt = stmt.on_conflict_do_nothing(
-        index_elements=['Date_Time']
+    # อัปเดตทับทุกคอลัมน์เสมอ (สำคัญมาก!)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['Date_Time'],
+        set_={
+            "PM10 (µg/m³)": obj.PM10,        
+            "PM2.5 (µg/m³)": obj.PM25,       
+            "WS (m/s)": obj.WS,
+            "WD": obj.WD,
+            "Temp (°C)": obj.Temp,
+            "RH (%)": obj.RH,
+            "BP (mBar)": obj.BP,
+        }
     )
 
     await db.execute(stmt)
     await db.commit()
+    logging.info(f"อัปเดต DB สำเร็จ: {obj.Date_Time} → PM2.5 = {obj.PM25}")
