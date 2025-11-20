@@ -4,8 +4,9 @@ sqlalchemy
 asyncpg
 pandas
 numpy
-xgboost-cpu
+xgboost==1.7.6
 joblib
 apscheduler
 python-dotenv
 requests
+filelock
