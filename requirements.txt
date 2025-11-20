@@ -10,3 +10,4 @@ apscheduler
 python-dotenv
 requests
 filelock
+scikit-learn
