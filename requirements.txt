@@ -2,7 +2,6 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 asyncpg
-psycopg2-binary
 pandas
 numpy
 xgboost

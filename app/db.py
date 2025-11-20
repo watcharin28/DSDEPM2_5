@@ -9,11 +9,17 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL not set in .env")
+    raise ValueError("DATABASE_URL is not set")
+
+# แปลงให้เป็น async driver สำหรับ SQLAlchemy
+# จาก postgresql:// → postgresql+asyncpg://
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 Base = declarative_base()
+
 
 class AirReading(Base):
     __tablename__ = "air_readings"
@@ -25,6 +31,7 @@ class AirReading(Base):
     Temp = Column(Double, nullable=True)
     RH = Column(Double, nullable=True)
     BP = Column(Double, nullable=True)
+
 
 async def init_db():
     async with engine.begin() as conn:
