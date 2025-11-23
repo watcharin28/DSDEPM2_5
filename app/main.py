@@ -87,6 +87,18 @@ if SCALER is not None:
         logging.info(f"[DEBUG] อ่านข้อมูล MinMaxScaler ไม่ได้: {e}")
 else:
     logging.warning("[DEBUG] SCALER ยังไม่ถูกโหลด")
+import hashlib
+
+def md5(path):
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+print("MODEL MD5:", md5(MODEL_PATH))
+print("SCALER MD5:", md5(SCALER_PATH))
+
 
 # ========================================
 #               AQI CONVERTER
