@@ -40,9 +40,10 @@ def setup_signal_handlers():
 STAGING_DIR = Path("data/staging")
 STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
-MASTER_FILE = STAGING_DIR / "raw_airbkk.csv"
-LOCK_FILE = STAGING_DIR / ".airbkk_lock"
-LOG_FILE = STAGING_DIR / "capture.log"
+MASTER_FILE = STAGING_DIR / "raw_airbkk.csv"      # raw จาก API
+CLEAN_FILE  = STAGING_DIR / "clean_airbkk.csv"    # ไฟล์ที่คลีนแล้ว (ใช้เช็คช่องโหว่เวลา)
+LOCK_FILE   = STAGING_DIR / ".airbkk_lock"
+LOG_FILE    = STAGING_DIR / "capture.log"
 
 URL = "https://official.airbkk.com/airbkk/Report/getData"
 TZ = "Asia/Bangkok"
@@ -60,6 +61,51 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger("airbkk_fetcher")
+
+# ------------------- HELPERS -------------------
+def _parse_date_time_be_aware(series: pd.Series) -> pd.Series:
+    """
+    รับ Series ของ Date_Time ที่เป็น string เช่น '14/11/2568 04:00' หรือ '14/11/2025 04:00'
+    - พยายาม parse เป็น datetime
+    - ถ้าปีเป็น พ.ศ. (เช่น 2568) → แปลงเป็น ค.ศ. (2025)
+    - ใส่ timezone Asia/Bangkok ให้เสมอ
+
+    คืนค่าเป็น Series ของ datetime64[ns, Asia/Bangkok] (บางตัวอาจเป็น NaT ถ้า parse ไม่ได้)
+    """
+    s = series.astype(str).str.strip()
+
+    # ลองตามฟอร์แมต dd/mm/yyyy HH:MM ก่อน
+    dt = pd.to_datetime(
+        s,
+        format="%d/%m/%Y %H:%M",
+        errors="coerce",
+        dayfirst=True,
+    )
+
+    # ถ้ายัง parse ไม่ได้เลย → ปล่อยให้ pandas เดา
+    if dt.isna().all():
+        dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
+
+    if dt.isna().all():
+        # ถ้าเดาไม่ได้จริง ๆ → คืน NaT ทั้งชุด
+        return dt
+
+    now_year = datetime.now(ZoneInfo(TZ)).year
+    # ปีที่เกินเยอะ ๆ เช่น 2568 → ถือว่าเป็น พ.ศ. แล้วแปลงเป็น ค.ศ.
+    be_mask = dt.dt.year > now_year + 1
+
+    if be_mask.any():
+        dt.loc[be_mask] = dt.loc[be_mask].map(
+            lambda x: x.replace(year=x.year - 543) if pd.notna(x) else x
+        )
+
+    # ใส่ timezone ให้ตรง
+    if dt.dt.tz is None:
+        dt = dt.dt.tz_localize(ZoneInfo(TZ))
+    else:
+        dt = dt.dt.tz_convert(ZoneInfo(TZ))
+
+    return dt
 
 # ------------------- FUNCTIONS -------------------
 def fetch_api_data(start=None, end=None):
@@ -114,10 +160,14 @@ def arr_to_df_raw(arr):
     return df.astype(str)
 
 
-def append_to_master_always_overwrite(df_new, master_file=MASTER_FILE):
+def append_to_master_always_overwrite(df_new, master_file=MASTER_FILE, verbose=True):
     """
     อัปเดตไฟล์ raw เสมอ ไม่สนว่ามี Date_Time ซ้ำหรือไม่
     สำคัญมาก: ทำให้ค่าจริงจากกรมทับค่า None/ค่าเก่าได้ทันที
+
+    verbose:
+        True  → log ระดับ INFO (ใช้เวลา fetch ปกติ)
+        False → log ระดับ DEBUG (ใช้เวลา fill ย้อนหลัง เพื่อลด spam)
     """
     os.makedirs(os.path.dirname(master_file), exist_ok=True)
     lock = FileLock(LOCK_FILE)
@@ -135,7 +185,11 @@ def append_to_master_always_overwrite(df_new, master_file=MASTER_FILE):
 
         if df_master.empty or "Date_Time" not in df_master.columns:
             df_new.to_csv(master_file, index=False, encoding="utf-8-sig")
-            logger.info(f"สร้างไฟล์ใหม่: {master_file} ({len(df_new)} แถว)")
+            msg = f"สร้างไฟล์ใหม่: {master_file} ({len(df_new)} แถว)"
+            if verbose:
+                logger.info(msg)
+            else:
+                logger.debug(msg)
             return len(df_new)
 
         df_master["Date_Time"] = df_master["Date_Time"].astype(str)
@@ -147,7 +201,11 @@ def append_to_master_always_overwrite(df_new, master_file=MASTER_FILE):
         df_combined = df_combined.sort_values("Date_Time", ascending=False)
 
         df_combined.to_csv(master_file, index=False, encoding="utf-8-sig")
-        logger.info(f"อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม {len(df_new)} แถว (ทับค่าจริงทันที)")
+        msg = f"อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม {len(df_new)} แถว (ทับค่าจริงทันที)"
+        if verbose:
+            logger.info(msg)
+        else:
+            logger.debug(msg)
 
         return len(df_new)
 
@@ -168,43 +226,58 @@ async def fill_missing_hours(lookback_hours=48):
     if shutdown_event.is_set():
         return 0
 
-    if not MASTER_FILE.exists():
-        logger.info("ไม่พบไฟล์ master → ข้าม")
+    # ------------------- เลือกไฟล์อ้างอิงสำหรับเช็คชั่วโมงที่ขาด -------------------
+    if CLEAN_FILE.exists():
+        source_file = CLEAN_FILE
+        logger.info(f"ใช้ไฟล์ clean ในการเช็คชั่วโมงที่ขาด: {CLEAN_FILE}")
+    elif MASTER_FILE.exists():
+        source_file = MASTER_FILE
+        logger.info(f"ไม่พบไฟล์ clean → ใช้ master แทน: {MASTER_FILE}")
+    else:
+        logger.info("ไม่พบไฟล์สำหรับเช็คชั่วโมงที่ขาด → ข้าม")
         return 0
 
     try:
-        df_master = pd.read_csv(MASTER_FILE, dtype=str, encoding="utf-8-sig")
+        df_ref = pd.read_csv(source_file, dtype=str, encoding="utf-8-sig")
     except EmptyDataError:
-        df_master = pd.DataFrame()
+        df_ref = pd.DataFrame()
 
-    if df_master.empty or "Date_Time" not in df_master.columns:
+    # ------------------- หา start_fill จากไฟล์อ้างอิง -------------------
+    if df_ref.empty or "Date_Time" not in df_ref.columns:
+        # ไม่มีข้อมูลเลย → ย้อนหลังจากตอนนี้
         start_fill = datetime.now(ZoneInfo(TZ)) - timedelta(hours=lookback_hours)
         start_fill = start_fill.replace(minute=0, second=0, microsecond=0)
     else:
-        df_master["dt"] = pd.to_datetime(df_master["Date_Time"], format="%d/%m/%Y %H:%M", errors="coerce")
-        df_master = df_master.dropna(subset=["dt"])
-        if df_master.empty:
-            start_fill = datetime.now(ZoneInfo(TZ)) - timedelta(hours=lookback_hours)
-            start_fill = start_fill.replace(minute=0, second=0, microsecond=0)
-        else:
-            latest = df_master["dt"].max()
-            start_fill = latest.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        dt = _parse_date_time_be_aware(df_ref["Date_Time"])
+        df_ref["dt"] = dt
+        df_ref = df_ref.dropna(subset=["dt"])
 
-    end_fill = datetime.now(ZoneInfo(TZ)).replace(minute=0, second=0, microsecond=0)
+        if df_ref.empty:
+            logger.warning("parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง")
+            return 0
+
+        latest = df_ref["dt"].max()
+        start_fill = latest.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+
+    now = datetime.now(ZoneInfo(TZ))
+    end_fill = now.replace(minute=0, second=0, microsecond=0)
+
     if start_fill >= end_fill:
-        logger.info("ข้อมูลครบแล้ว")
+        logger.info("ข้อมูลครบแล้ว (จากไฟล์อ้างอิง)")
         return 0
 
-    expected = pd.date_range(start_fill, end_fill, freq='h', tz=ZoneInfo(TZ))
-    existing = set(df_master["dt"].dt.floor('h')) if "dt" in df_master.columns and not df_master.empty else set()
-    missing_hours = [dt for dt in expected if dt.floor('h') not in existing]
+    # ------------------- สร้าง list ชั่วโมงที่ควรมี -------------------
+    expected = pd.date_range(start_fill, end_fill, freq="h", tz=ZoneInfo(TZ))
+    existing = set(df_ref["dt"].dt.floor("h")) if "dt" in df_ref.columns and not df_ref.empty else set()
+    missing_hours = [dt for dt in expected if dt.floor("h") not in existing]
 
     if not missing_hours:
-        logger.info("ไม่มีชั่วโมงที่ขาด")
+        logger.info("ไม่มีชั่วโมงที่ขาด (จากไฟล์อ้างอิง)")
         return 0
 
     logger.info(f"พบ {len(missing_hours)} ชั่วโมงที่ขาด → ดึงใหม่")
 
+    # ------------------- เติมย้อนหลัง: เขียนลง MASTER_FILE (raw) เหมือนเดิม -------------------
     total_added = 0
     for dt in missing_hours:
         if shutdown_event.is_set():
@@ -214,16 +287,17 @@ async def fill_missing_hours(lookback_hours=48):
             arr, _, _ = fetch_api_data(start=dt, end=dt + timedelta(hours=1))
             if arr:
                 df_new = arr_to_df_raw(arr)
-                added = append_to_master_always_overwrite(df_new)
+                # ไม่อยากให้ spam log → verbose=False
+                added = append_to_master_always_overwrite(df_new, verbose=False)
                 total_added += added
-                logger.info(f"เติม {dt.strftime('%Y-%m-%d %H:%M')} → +{added}")
+                logger.debug(f"เติม {dt.strftime('%Y-%m-%d %H:%M')} → +{added}")
         except Exception as e:
             logger.error(f"ดึง {dt} ล้มเหลว: {e}")
 
         if not shutdown_event.is_set():
             await asyncio.sleep(1)
 
-    logger.info(f"เติมข้อมูลย้อนหลังเสร็จ: +{total_added} แถว")
+    logger.info(f"เติมข้อมูลย้อนหลังเสร็จ: +{total_added} แถว จาก {len(missing_hours)} ชั่วโมง")
     return total_added
 
 
@@ -254,10 +328,10 @@ def main():
             return
 
         df_new = arr_to_df_raw(arr)
-        added = append_to_master_always_overwrite(df_new)  # แก้ตรงนี้!
+        added = append_to_master_always_overwrite(df_new)  # verbose=True (ค่าเริ่มต้น)
         logger.info(f"สำเร็จ: อัปเดต/เพิ่ม {added} แถว")
 
-    except Exception as e:
+    except Exception:
         logger.exception("ดึงข้อมูลล้มเหลว")
         raise
 

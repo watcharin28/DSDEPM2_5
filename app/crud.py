@@ -37,4 +37,4 @@ async def upsert_air_reading(db: AsyncSession, obj: AirReadingSchema):
 
     await db.execute(stmt)
     await db.commit()
-    logging.info(f"อัปเดต DB สำเร็จ: {obj.Date_Time} → PM2.5 = {obj.PM25}")
+    # logging.info(f"อัปเดต DB สำเร็จ: {obj.Date_Time} → PM2.5 = {obj.PM25}")

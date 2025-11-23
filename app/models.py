@@ -10,7 +10,7 @@ class AirReading(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     Date_Time = Column(DateTime(timezone=True), unique=True, nullable=False, index=True)
 
-    # ใช้ชื่อตรงกับตารางที่มีอยู่
+    
     PM10 = Column("PM10 (µg/m³)", Double, nullable=True)
     PM25 = Column("PM2.5 (µg/m³)", Double, nullable=True)
     WS = Column("WS (m/s)", Double, nullable=True)

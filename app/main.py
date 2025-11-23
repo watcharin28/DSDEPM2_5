@@ -308,10 +308,12 @@ async def predict_next_24h():
                 current[0, pm25_indices] = np.roll(current[0, pm25_indices], -1)
                 current[0, pm25_indices[0]] = pred_scaled
 
+            base_time = current_time  # อิงเวลาจริงที่ station บันทึกไว้
+
             hours = [
-                (datetime.now() + timedelta(hours=i+1)).strftime("%H:%M")
-                for i in range(24)
-            ]
+                        (base_time + timedelta(hours=i+1)).strftime("%H:%M")
+                            for i in range(24)
+                    ]
 
             max_val = max(preds)
             max_aqi_info = pm25_to_aqi_th(max_val)
