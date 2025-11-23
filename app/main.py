@@ -17,10 +17,12 @@ import numpy as np
 from datetime import datetime, timedelta
 from sqlalchemy import text
 import xgboost as xgb
+from zoneinfo import ZoneInfo 
 
 # ========================================
 #               CONFIG
 # ========================================
+TH_TZ = ZoneInfo("Asia/Bangkok")
 MAX_LAG = 120
 ROLL_WINDOWS = [3, 6, 12, 24]
 DB_FETCH_LIMIT = 400  # จำนวนแถวที่ดึงจาก DB (เพียงพอสำหรับ lag/rolling)
@@ -154,7 +156,28 @@ async def run_pipeline():
     logging.info("=== PIPELINE END ===\n")
 
 scheduler = AsyncIOScheduler(timezone="Asia/Bangkok")
-scheduler.add_job(run_pipeline, "cron", minute=5, hour="*", id="airbkk_pipeline", replace_existing=True)
+scheduler = AsyncIOScheduler(timezone="Asia/Bangkok")
+
+# รอบแรก: นาทีที่ 5 ของทุกชั่วโมง
+scheduler.add_job(
+    run_pipeline,
+    "cron",
+    minute=5,
+    hour="*",
+    id="airbkk_pipeline_5",
+    replace_existing=True
+)
+
+# รอบสอง: นาทีที่ 15 ของทุกชั่วโมง (หลังจากนั้น 10 นาที)
+scheduler.add_job(
+    run_pipeline,
+    "cron",
+    minute=15,
+    hour="*",
+    id="airbkk_pipeline_15",
+    replace_existing=True
+)
+
 
 # ========================================
 #               DATABASE DEPENDENCY
@@ -308,12 +331,11 @@ async def predict_next_24h():
                 current[0, pm25_indices] = np.roll(current[0, pm25_indices], -1)
                 current[0, pm25_indices[0]] = pred_scaled
 
-            base_time = current_time  # อิงเวลาจริงที่ station บันทึกไว้
-
             hours = [
-                        (base_time + timedelta(hours=i+1)).strftime("%H:%M")
+                        (datetime.now(TH_TZ) + timedelta(hours=i+1)).strftime("%H:%M")
                             for i in range(24)
                     ]
+
 
             max_val = max(preds)
             max_aqi_info = pm25_to_aqi_th(max_val)

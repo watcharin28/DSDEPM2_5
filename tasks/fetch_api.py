@@ -82,12 +82,12 @@ def _parse_date_time_be_aware(series: pd.Series) -> pd.Series:
         dayfirst=True,
     )
 
-    # ถ้ายัง parse ไม่ได้เลย → ปล่อยให้ pandas เดา
+    
     if dt.isna().all():
         dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
 
     if dt.isna().all():
-        # ถ้าเดาไม่ได้จริง ๆ → คืน NaT ทั้งชุด
+        
         return dt
 
     now_year = datetime.now(ZoneInfo(TZ)).year
