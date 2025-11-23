@@ -1,4 +1,3 @@
-# app/main.py — เวอร์ชันสมบูรณ์ที่สุด + แก้แบน 100% + log เต็ม + scaler จริง
 
 from fastapi import FastAPI, Depends, HTTPException
 from app.db import AsyncSessionLocal
