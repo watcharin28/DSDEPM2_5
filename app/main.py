@@ -64,6 +64,29 @@ if SCALER_PATH.exists():
         logging.error(f"โหลด scaler ล้มเหลว: {e}")
 else:
     logging.warning("ไม่พบ pm25_scaler.pkl → พยากรณ์จะแบน!")
+    # ===== DEBUG สำหรับเทียบ local vs deploy =====
+    logging.info(f"[DEBUG] MODEL_PATH = {MODEL_PATH}")
+    logging.info(f"[DEBUG] SCALER_PATH = {SCALER_PATH}")
+
+if SCALER is not None:
+    try:
+        logging.info(f"[DEBUG] SCALER class = {SCALER.__class__.__name__}")
+        logging.info(f"[DEBUG] SCALER.n_features_in_ = {SCALER.n_features_in_}")
+    except Exception as e:
+        logging.info(f"[DEBUG] อ่าน n_features_in_ ไม่ได้: {e}")
+
+    # ถ้าเป็น MinMaxScaler
+    try:
+        if hasattr(SCALER, "feature_range"):
+            logging.info(f"[DEBUG] MinMaxScaler.feature_range = {SCALER.feature_range}")
+        if hasattr(SCALER, "data_min_"):
+            logging.info(f"[DEBUG] MinMaxScaler.data_min_ (last feature) = {SCALER.data_min_[-1]:.6f}")
+        if hasattr(SCALER, "data_max_"):
+            logging.info(f"[DEBUG] MinMaxScaler.data_max_ (last feature) = {SCALER.data_max_[-1]:.6f}")
+    except Exception as e:
+        logging.info(f"[DEBUG] อ่านข้อมูล MinMaxScaler ไม่ได้: {e}")
+else:
+    logging.warning("[DEBUG] SCALER ยังไม่ถูกโหลด")
 
 # ========================================
 #               AQI CONVERTER
