@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, Depends, HTTPException
 from app.db import AsyncSessionLocal
 from app.crud import upsert_air_reading
@@ -19,7 +18,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 import xgboost as xgb
 from zoneinfo import ZoneInfo
-
+import hashlib
 # ========================================
 #               CONFIG
 # ========================================
@@ -226,87 +225,70 @@ async def resync_db():
 @app.get("/predict")
 async def predict_next_24h():
     if MODEL is None or SCALER is None:
-        raise HTTPException(503, "Model/Scaler not loaded")
+        raise HTTPException(503, "Model หรือ Scaler โหลดไม่สำเร็จ")
 
     async with AsyncSessionLocal() as db:
-        # 1. ดึงข้อมูล 48 ชม. ล่าสุด
         query = text('''
             SELECT "Date_Time", 
                    "PM10 (µg/m³)" as pm10, "WS (m/s)" as ws, "WD" as wd, 
                    "Temp (°C)" as temp, "RH (%)" as rh, "BP (mBar)" as bp,
                    "PM2.5 (µg/m³)" as pm25
-            FROM air_readings ORDER BY "Date_Time" DESC LIMIT 48
+            FROM air_readings 
+            ORDER BY "Date_Time" DESC 
+            LIMIT 48
         ''')
         result = await db.execute(query)
         rows = result.fetchall()
         
-        if not rows:
-             raise HTTPException(503, "No data in DB")
+        if len(rows) < 24:
+            raise HTTPException(503, "ข้อมูลไม่พอ 24 ชม.")
 
-        # เตรียม DataFrame
-        df = pd.DataFrame(rows, columns=["Date_Time", "pm10", "ws", "wd", "temp", "rh", "bp", "pm25"])
-        df["Date_Time"] = pd.to_datetime(df["Date_Time"])
+        df = pd.DataFrame([dict(r._mapping) for r in rows])
         df = df.sort_values("Date_Time").reset_index(drop=True)
-        
-        # เก็บค่าปัจจุบัน
+
         current_pm25 = float(df["pm25"].iloc[-1])
         current_aqi = pm25_to_aqi_th(current_pm25)
 
-        # 2. [แก้จุดที่ 1] Scale ข้อมูลดิบ (N, 7) ก่อนสร้าง Lag (ให้เหมือนตอน Train เป๊ะๆ)
-        # FEATURES_ORDER ต้องตรงกับตอน Train: ["PM10", "WS", "WD", "Temp", "RH", "BP", "PM2.5"]
+        # ข้อมูลดิบ 48 ชม.
         data_raw = df[FEATURES_ORDER].values.astype(float)
-        
-        try:
-            data_scaled = SCALER.transform(data_raw)
-        except ValueError as e:
-            return {"error": f"Scaler mismatch: {e}", "hint": "Check feature count (must be 7)"}
 
-        # 3. สร้าง Input ก้อนแรก (24 ชม. ล่าสุด)
-        # Shape: (1, 168) -> Flatten จาก (24, 7)
-        # ต้องมั่นใจว่า data_scaled มีอย่างน้อย 24 แถว
-        if len(data_scaled) < 24:
-             raise HTTPException(503, "Not enough data for lag")
-             
-        # เอา 24 ชม. ล่าสุดมาเป็น window ตั้งต้น
-        current_window = data_scaled[-24:].copy() 
+        # 1. Scale ก่อน (สำคัญที่สุด!)
+        data_scaled = SCALER.transform(data_raw)  # shape (48, 7)
 
-        preds_actual = []
-        hours = []
-        
-        # 4. [แก้จุดที่ 2] ลูปพยากรณ์ที่ถูกต้อง (เลื่อนทั้ง Window)
-        for i in range(24):
-            # Flatten เพื่อเข้าโมเดล (1, 168)
-            X_flat = current_window.flatten().reshape(1, -1)
-            
-            # พยากรณ์ (ได้ค่า Scaled)
-            pred_scaled = float(MODEL.predict(X_flat)[0])
-            
-            # แปลงค่ากลับเป็นหน่วยจริง
-            dummy_row = np.zeros((1, 7))
-            dummy_row[0, -1] = pred_scaled # ตำแหน่งสุดท้ายคือ PM2.5
-            pred_val = SCALER.inverse_transform(dummy_row)[0, -1]
-            
-            # เก็บผลลัพธ์ (กันค่าติดลบ)
-            final_val = max(0.0, round(float(pred_val), 1))
-            preds_actual.append(final_val)
-            hours.append((datetime.now(TH_TZ) + timedelta(hours=i+1)).strftime("%H:%M"))
-            
-            # อัปเดต Window:
-            # สร้างแถวใหม่: ใช้ Weather เดิม (Persistence) แต่เปลี่ยน PM2.5 เป็นค่าที่เพิ่งพยากรณ์ได้
-            next_row = current_window[-1].copy() 
-            next_row[-1] = pred_scaled  
-            
-            # ตัดแถวบนสุดทิ้ง + ต่อแถวใหม่ด้านล่าง
-            current_window = np.vstack([current_window[1:], next_row])
+        # 2. เอา 24 ชม. ล่าสุดเป็น window ตั้งต้น
+        window = data_scaled[-24:].copy()  # (24, 7)
 
-        max_val = max(preds_actual)
+        predictions = []
+
+        for _ in range(24):
+            X_input = window.flatten().reshape(1, -1)  # (1, 168)
+            pred_scaled = float(MODEL.predict(X_input)[0])
+
+            # แปลงกลับเป็น µg/m³
+            dummy = np.zeros((1, 7))
+            dummy[0, -1] = pred_scaled
+            pred_real = SCALER.inverse_transform(dummy)[0, -1]
+
+            pred_real = max(0.0, round(float(pred_real), 1))
+            predictions.append(pred_real)
+
+            # อัปเดต window: ใช้ weather persistence + PM2.5 ใหม่
+            new_row = window[-1].copy()
+            new_row[-1] = pred_scaled
+            window = np.vstack([window[1:], new_row])
+
+        # สร้าง timestamp
+        now = datetime.now(TH_TZ).replace(minute=0, second=0, microsecond=0)
+        hours = [(now + timedelta(hours=i+1)).strftime("%H:%M") for i in range(24)]
+
+        max_val = max(predictions)
         max_aqi = pm25_to_aqi_th(max_val)
 
         return {
             "ค่าฝุ่น pm2.5 ปัจจุบัน": round(current_pm25, 1),
             "ดัชนีคุณภาพอากาศปัจจุบัน": current_aqi["aqi"],
             "ระดับคุณภาพอากาศปัจจุบัน": current_aqi["level"],
-            "พยากรณ์ฝุ่น_24ชั่วโมง": dict(zip(hours, preds_actual)),
+            "พยากรณ์ฝุ่น_24ชั่วโมง": dict(zip(hours, predictions)),
             "PM2.5 สูงสุดที่คาดการณ์": max_val,
             "AQI สูงสุดที่คาดการณ์": max_aqi["aqi"],
             "ระดับโดยรวมจากค่าสูงสุด": max_aqi["level"],
