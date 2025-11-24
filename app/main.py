@@ -32,7 +32,7 @@ FORMATTED_FILE = STAGING_DIR / "formatted_air.csv"
 CLEANED_FILE = STAGING_DIR / "cleaned_air.csv"
 
 MODEL_PATH = BASE_DIR / "models" / "xgboost_pm25_best.json"
-SCALER_PATH = BASE_DIR / "models" / "pm25_scalers.pkl"
+SCALER_PATH = BASE_DIR / "models" / "pm25_scaler.pkl"
 
 # ชื่อคอลัมน์ที่ตรงกับ DB จริง ๆ (ต้องใช้ชื่อย่อ)
 FEATURES_ORDER = ["pm10", "ws", "wd", "temp", "rh", "bp", "pm25"]
@@ -322,3 +322,34 @@ async def health():
         "data_rows": rows,
         "timestamp": datetime.now(TH_TZ).isoformat()
     }
+@app.get("/debug-scaler")
+async def debug_scaler_info():
+    """ดูข้อมูล scaler ที่โหลดไว้"""
+    if SCALER is None:
+        return {"error": "Scaler not loaded"}
+    
+    info = {
+        "class": SCALER.__class__.__name__,
+        "n_features": SCALER.n_features_in_,
+        "scaler_md5": md5(SCALER_PATH),
+        "model_md5": md5(MODEL_PATH),
+    }
+    
+    if hasattr(SCALER, 'data_min_'):
+        info["pm25_data_min"] = float(SCALER.data_min_[6])
+        info["pm25_data_max"] = float(SCALER.data_max_[6])
+        info["pm25_scale"] = float(SCALER.scale_[6])
+    
+    # ทดสอบ transform
+    test = np.array([[50, 2, 180, 30, 60, 1010, 10.5]])
+    scaled = SCALER.transform(test)
+    back = SCALER.inverse_transform(scaled)
+    
+    info["test_transform"] = {
+        "input_pm25": 10.5,
+        "scaled_pm25": float(scaled[0, 6]),
+        "back_pm25": float(back[0, 6]),
+        "error": float(abs(back[0, 6] - 10.5))
+    }
+    
+    return info
