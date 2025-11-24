@@ -20254,3 +20254,417 @@ KeyError: "None of [Index(['PM10 (µg/m³)', 'WS (m/s)', 'WD', 'Temp (°C)', 'RH
 2025-11-24 01:15:08,932 INFO: พยากรณ์สำเร็จ! สูงสุด 24 ชม. = 24.8 µg/m³ → AQI 50 (ดี)
 2025-11-24 01:15:08,932 INFO: === พยากรณ์ 24 ชม. เสร็จสิ้น ===
 
+2025-11-24 01:20:40,669 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:20:40,670 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:20:40,670 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:20:40,670 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:20:40,670 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:20:40,670 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:20:40,670 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:20:40,675 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:20:40,675 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:20:40,676 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:20:40,677 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:20:40,677 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:20:40,678 INFO: Scheduler started
+2025-11-24 01:20:40,678 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:20:40,678 INFO: === PIPELINE START ===
+2025-11-24 01:20:40,678 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:20:41,415 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:20:41,425 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:20:41,426 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:20:41,426 INFO: Fetch สำเร็จ
+2025-11-24 01:20:41,426 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:20:41,456 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:20:41,458 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:20:41,459 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:20:41,461 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:20:41,463 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:20:41,463 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:20:41,474 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:20:41,485 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:20:41,489 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:20:41,519 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:20:41,788 INFO: โหลด DB สำเร็จ
+2025-11-24 01:20:41,789 INFO: Backup สำเร็จ: data\backups\2025-11-24.csv
+2025-11-24 01:20:41,792 INFO: อัพเดท latest.csv สำเร็จ
+2025-11-24 01:20:41,792 INFO: Load to DB + Backup สำเร็จ
+2025-11-24 01:20:41,792 INFO: === PIPELINE END ===
+
+2025-11-24 01:32:10,424 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:32:10,425 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:32:10,426 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:32:10,426 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:32:10,426 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:32:10,426 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:32:10,426 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:32:10,431 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:32:10,431 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:32:10,432 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:32:10,433 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:32:10,434 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:32:10,434 INFO: Scheduler started
+2025-11-24 01:32:10,434 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:32:10,434 INFO: === PIPELINE START ===
+2025-11-24 01:32:10,434 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:32:11,162 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:32:11,170 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:32:11,171 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:32:11,171 INFO: Fetch สำเร็จ
+2025-11-24 01:32:11,171 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:32:11,198 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:32:11,200 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:32:11,201 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:32:11,204 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:32:11,205 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:32:11,205 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:32:11,218 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:32:11,231 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:32:11,235 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:32:11,266 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:32:11,636 INFO: โหลด DB สำเร็จ
+2025-11-24 01:32:11,638 INFO: Backup สำเร็จ: data\backups\2025-11-24.csv
+2025-11-24 01:32:11,641 INFO: อัพเดท latest.csv สำเร็จ
+2025-11-24 01:32:11,641 INFO: Load to DB + Backup สำเร็จ
+2025-11-24 01:32:11,641 INFO: === PIPELINE END ===
+
+2025-11-24 01:32:13,908 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:32:13,910 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:32:13,910 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:32:13,910 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:32:13,911 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:32:13,911 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:32:13,911 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:32:13,916 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:32:13,916 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:32:13,918 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:32:13,919 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:32:13,919 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:32:13,919 INFO: Scheduler started
+2025-11-24 01:32:13,919 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:32:13,919 INFO: === PIPELINE START ===
+2025-11-24 01:32:13,919 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:32:14,640 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:32:14,648 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:32:14,648 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:32:14,648 INFO: Fetch สำเร็จ
+2025-11-24 01:32:14,648 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:32:14,677 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:32:14,679 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:32:14,679 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:32:14,682 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:32:14,683 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:32:14,684 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:32:14,695 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:32:14,709 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:32:14,712 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:32:14,742 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:32:17,424 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:32:17,425 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:32:17,425 INFO: [DEBUG] MODEL_PATH = C:\Pm2_5\models\xgboost_pm25_best.json
+2025-11-24 01:32:17,426 INFO: [DEBUG] SCALER_PATH = C:\Pm2_5\models\pm25_scalers.pkl
+2025-11-24 01:32:17,426 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:32:17,426 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:32:17,426 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:32:17,426 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:32:17,426 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:32:17,430 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:32:17,430 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:32:17,432 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:32:17,433 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:32:17,433 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:32:17,433 INFO: Scheduler started
+2025-11-24 01:32:17,433 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:32:17,434 INFO: === PIPELINE START ===
+2025-11-24 01:32:17,434 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:32:18,153 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:32:18,159 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:32:18,160 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:32:18,160 INFO: Fetch สำเร็จ
+2025-11-24 01:32:18,160 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:32:18,187 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:32:18,189 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:32:18,189 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:32:18,192 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:32:18,193 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:32:18,193 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:32:18,205 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:32:18,217 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:32:18,221 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:32:18,252 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:32:18,571 INFO: โหลด DB สำเร็จ
+2025-11-24 01:32:18,574 INFO: Backup สำเร็จ: data\backups\2025-11-24.csv
+2025-11-24 01:32:18,577 INFO: อัพเดท latest.csv สำเร็จ
+2025-11-24 01:32:18,577 INFO: Load to DB + Backup สำเร็จ
+2025-11-24 01:32:18,577 INFO: === PIPELINE END ===
+
+2025-11-24 01:35:08,058 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:35:08,060 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:35:08,060 INFO: [DEBUG] MODEL_PATH = C:\Pm2_5\models\xgboost_pm25_best.json
+2025-11-24 01:35:08,060 INFO: [DEBUG] SCALER_PATH = C:\Pm2_5\models\pm25_scalers.pkl
+2025-11-24 01:35:08,060 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:35:08,060 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:35:08,060 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:35:08,060 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:35:08,060 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:35:08,065 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:35:08,066 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:35:08,067 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:35:08,069 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:35:08,069 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:35:08,069 INFO: Scheduler started
+2025-11-24 01:35:08,069 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:35:08,069 INFO: === PIPELINE START ===
+2025-11-24 01:35:08,070 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:35:08,819 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:35:08,827 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:35:08,827 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:35:08,828 INFO: Fetch สำเร็จ
+2025-11-24 01:35:08,828 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:35:08,856 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:35:08,858 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:35:08,859 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:35:08,861 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:35:08,863 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:35:08,863 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:35:08,875 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:35:08,888 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:35:08,892 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:35:08,923 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:35:10,952 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:35:10,953 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:35:10,953 INFO: [DEBUG] MODEL_PATH = C:\Pm2_5\models\xgboost_pm25_best.json
+2025-11-24 01:35:10,953 INFO: [DEBUG] SCALER_PATH = C:\Pm2_5\models\pm25_scalers.pkl
+2025-11-24 01:35:10,953 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:35:10,953 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:35:10,953 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:35:10,954 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:35:10,954 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:35:10,958 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:35:10,958 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:35:10,960 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:35:10,962 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:35:10,962 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:35:10,962 INFO: Scheduler started
+2025-11-24 01:35:10,962 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:35:10,962 INFO: === PIPELINE START ===
+2025-11-24 01:35:10,962 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:35:11,710 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:35:11,718 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:35:11,718 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:35:11,718 INFO: Fetch สำเร็จ
+2025-11-24 01:35:11,718 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:35:11,747 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:35:11,748 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:35:11,749 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:35:11,751 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:35:11,753 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:35:11,753 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:35:11,764 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:35:11,777 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:35:11,781 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:35:11,811 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:35:12,085 INFO: โหลด DB สำเร็จ
+2025-11-24 01:35:12,087 INFO: Backup สำเร็จ: data\backups\2025-11-24.csv
+2025-11-24 01:35:12,090 INFO: อัพเดท latest.csv สำเร็จ
+2025-11-24 01:35:12,090 INFO: Load to DB + Backup สำเร็จ
+2025-11-24 01:35:12,090 INFO: === PIPELINE END ===
+
+2025-11-24 01:35:14,757 INFO: === เริ่มพยากรณ์ฝุ่น PM2.5 ล่วงหน้า 24 ชั่วโมง ===
+2025-11-24 01:35:14,759 INFO: ดึงข้อมูลจาก DB สำเร็จ → 200 แถว
+2025-11-24 01:35:14,762 INFO: ค่าฝุ่นปัจจุบัน: 27.5 µg/m³ → AQI 61 (ปานกลาง)
+2025-11-24 01:35:14,763 INFO: สเกลข้อมูลสำเร็จ → shape: (200, 7)
+2025-11-24 01:35:14,764 INFO: [PREDICT] current_pm25 = 27.5, raw_pred = 24.8
+2025-11-24 01:35:14,764 INFO: พยากรณ์สำเร็จ! สูงสุด 24 ชม. = 24.8 µg/m³ → AQI 50 (ดี)
+2025-11-24 01:35:14,764 INFO: === พยากรณ์ 24 ชม. เสร็จสิ้น ===
+
+2025-11-24 01:35:29,073 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 01:35:29,074 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 01:35:29,075 INFO: [DEBUG] MODEL_PATH = C:\Pm2_5\models\xgboost_pm25_best.json
+2025-11-24 01:35:29,075 INFO: [DEBUG] SCALER_PATH = C:\Pm2_5\models\pm25_scalers.pkl
+2025-11-24 01:35:29,075 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 01:35:29,075 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 01:35:29,075 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 01:35:29,075 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 01:35:29,075 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 01:35:29,080 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:35:29,080 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 01:35:29,082 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:35:29,083 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:35:29,083 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 01:35:29,083 INFO: Scheduler started
+2025-11-24 01:35:29,083 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 01:35:29,084 INFO: === PIPELINE START ===
+2025-11-24 01:35:29,084 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 01:35:29,814 INFO: ดึง 2025-11-24 00:00:00+07:00 - 2025-11-24 01:00:00+07:00 → 2 แถว
+2025-11-24 01:35:29,824 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 01:35:29,825 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 01:35:29,825 INFO: Fetch สำเร็จ
+2025-11-24 01:35:29,825 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 01:35:29,854 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 01:35:29,857 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 206 แถว
+2025-11-24 01:35:29,857 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 01:35:29,859 INFO: รวมเก่า 206 + ใหม่ 206 → 206 (เพิ่ม 0)
+2025-11-24 01:35:29,861 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 01:35:29,861 INFO: ไม่มีข้อมูลใหม่ให้ format
+2025-11-24 01:35:29,873 INFO: เริ่ม clean ข้อมูล: 206 แถว
+2025-11-24 01:35:29,886 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (206 แถว)
+2025-11-24 01:35:29,890 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-23 17:00:00          45.6           15.3       0.9 126.7       29.3    44.7     1011.7
+2025-11-23 16:00:00          54.1           16.6       1.0 138.1       29.9    42.9     1011.8
+2025-11-24 01:35:29,920 INFO: เตรียมโหลด 206 แถว
+2025-11-24 01:35:30,234 INFO: โหลด DB สำเร็จ
+2025-11-24 01:35:30,236 INFO: Backup สำเร็จ: data\backups\2025-11-24.csv
+2025-11-24 01:35:30,238 INFO: อัพเดท latest.csv สำเร็จ
+2025-11-24 01:35:30,240 INFO: Load to DB + Backup สำเร็จ
+2025-11-24 01:35:30,240 INFO: === PIPELINE END ===
+
+2025-11-24 01:36:40,586 INFO: === เริ่มพยากรณ์ฝุ่น PM2.5 ล่วงหน้า 24 ชั่วโมง ===
+2025-11-24 01:36:40,590 INFO: ดึงข้อมูลจาก DB สำเร็จ → 200 แถว
+2025-11-24 01:36:40,593 INFO: ค่าฝุ่นปัจจุบัน: 27.5 µg/m³ → AQI 61 (ปานกลาง)
+2025-11-24 01:36:40,594 INFO: สเกลข้อมูลสำเร็จ → shape: (200, 7)
+2025-11-24 01:36:40,594 INFO: เริ่ม autoregressive prediction...
+2025-11-24 01:36:40,603 INFO: พยากรณ์สำเร็จ! สูงสุด 24 ชม. = 24.8 µg/m³ → AQI 50 (ดี)
+2025-11-24 01:36:40,603 INFO: === พยากรณ์ 24 ชม. เสร็จสิ้น ===
+
+2025-11-24 14:51:50,996 INFO: [MODEL] โหลดสำเร็จ → คาดหวัง 168 features
+2025-11-24 14:51:51,007 INFO: [SCALER] โหลดสำเร็จ → 7 features (ต้องเป็น 168)
+2025-11-24 14:51:51,007 INFO: [DEBUG] MODEL_PATH = C:\Pm2_5\models\xgboost_pm25_best.json
+2025-11-24 14:51:51,008 INFO: [DEBUG] SCALER_PATH = C:\Pm2_5\models\pm25_scalers.pkl
+2025-11-24 14:51:51,008 INFO: [DEBUG] SCALER class = MinMaxScaler
+2025-11-24 14:51:51,008 INFO: [DEBUG] SCALER.n_features_in_ = 7
+2025-11-24 14:51:51,008 INFO: [DEBUG] MinMaxScaler.feature_range = (0, 1)
+2025-11-24 14:51:51,008 INFO: [DEBUG] MinMaxScaler.data_min_ (last feature) = 0.000000
+2025-11-24 14:51:51,008 INFO: [DEBUG] MinMaxScaler.data_max_ (last feature) = 182.100000
+2025-11-24 14:51:51,015 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 14:51:51,015 INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-11-24 14:51:51,019 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 14:51:51,020 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 14:51:51,020 INFO: Added job "run_pipeline" to job store "default"
+2025-11-24 14:51:51,021 INFO: Scheduler started
+2025-11-24 14:51:51,021 INFO: Scheduler เริ่มแล้ว → ทุกชั่วโมง นาทีที่ 5 และ 15
+2025-11-24 14:51:51,021 INFO: === PIPELINE START ===
+2025-11-24 14:51:51,021 INFO: Event loop กำลังรัน → ข้ามการตั้ง signal handlers (uvicorn mode)
+2025-11-24 14:51:51,859 INFO: ดึง 2025-11-24 13:00:00+07:00 - 2025-11-24 14:00:00+07:00 → 2 แถว
+2025-11-24 14:51:51,919 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-24 14:51:51,920 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
+2025-11-24 14:51:51,920 INFO: Fetch สำเร็จ
+2025-11-24 14:51:51,920 INFO: ไม่พบไฟล์ clean → ใช้ master แทน: data\staging\raw_airbkk.csv
+2025-11-24 14:51:51,969 WARNING: parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง
+2025-11-24 14:51:51,972 INFO: อ่านข้อมูลดิบ: data\staging\raw_airbkk.csv → 208 แถว
+2025-11-24 14:51:51,973 INFO: เลือกคอลัมน์: 8 คอลัมน์
+2025-11-24 14:51:51,985 INFO: รวมเก่า 206 + ใหม่ 208 → 208 (เพิ่ม 2)
+2025-11-24 14:51:51,987 INFO: บันทึก: data\staging\formatted_air.csv
+2025-11-24 14:51:51,987 INFO: Format สำเร็จ: +2 แถว
+2025-11-24 14:51:51,999 INFO: เริ่ม clean ข้อมูล: 208 แถว
+2025-11-24 14:51:52,027 INFO: บันทึกสำเร็จ: data\staging\cleaned_air.csv (208 แถว)
+2025-11-24 14:51:52,032 INFO: 
+ล่าสุด 10 แถว:
+          Date_Time  PM10 (µg/m³)  PM2.5 (µg/m³)  WS (m/s)    WD  Temp (°C)  RH (%)  BP (mBar)
+2025-11-24 14:00:00          40.4           12.9       0.9 134.6       30.6    42.9     1011.2
+2025-11-24 13:00:00          45.7           10.9       0.9 131.2       29.8    45.0     1012.1
+2025-11-24 01:00:00          50.0           27.5       0.6 133.7       25.5    63.1     1012.8
+2025-11-24 00:00:00          50.1           26.3       0.8 137.4       25.9    61.5     1012.9
+2025-11-23 23:00:00          51.7           24.2       0.6 132.8       26.1    59.2     1013.2
+2025-11-23 22:00:00          47.2           22.4       0.7 138.2       26.8    54.5     1013.3
+2025-11-23 21:00:00          50.1           23.3       0.6 125.8       26.8    53.9     1013.3
+2025-11-23 20:00:00          51.0           19.6       0.4 118.4       27.1    52.3     1013.0
+2025-11-23 19:00:00          51.0           16.1       0.6 131.8       27.7    49.6     1012.4
+2025-11-23 18:00:00          50.6           16.3       0.8 132.5       28.4    47.3     1011.8
+2025-11-24 14:51:54,491 INFO: เตรียมโหลด 208 แถว
+2025-11-24 14:51:55,231 INFO: โหลด DB สำเร็จ
+2025-11-24 14:51:55,236 INFO: Backup สำเร็จ: data\backups\2025-11-24.csv
+2025-11-24 14:51:55,244 INFO: อัพเดท latest.csv สำเร็จ
+2025-11-24 14:51:55,244 INFO: Load to DB + Backup สำเร็จ
+2025-11-24 14:51:55,245 INFO: === PIPELINE END ===
+
+2025-11-24 14:52:03,365 INFO: === เริ่มพยากรณ์ฝุ่น PM2.5 ล่วงหน้า 24 ชั่วโมง ===
+2025-11-24 14:52:03,375 INFO: ดึงข้อมูลจาก DB สำเร็จ → 200 แถว
+2025-11-24 14:52:03,379 INFO: ค่าฝุ่นปัจจุบัน: 12.9 µg/m³ → AQI 22 (ดีมาก)
+2025-11-24 14:52:03,380 INFO: สเกลข้อมูลสำเร็จ → shape: (200, 7)
+2025-11-24 14:52:03,381 INFO: เริ่ม autoregressive prediction...
+2025-11-24 14:52:03,412 INFO: พยากรณ์สำเร็จ! สูงสุด 24 ชม. = 21.6 µg/m³ → AQI 42 (ดี)
+2025-11-24 14:52:03,412 INFO: === พยากรณ์ 24 ชม. เสร็จสิ้น ===
+

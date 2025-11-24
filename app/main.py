@@ -65,8 +65,8 @@ if SCALER_PATH.exists():
 else:
     logging.warning("ไม่พบ pm25_scaler.pkl → พยากรณ์จะแบน!")
     # ===== DEBUG สำหรับเทียบ local vs deploy =====
-    logging.info(f"[DEBUG] MODEL_PATH = {MODEL_PATH}")
-    logging.info(f"[DEBUG] SCALER_PATH = {SCALER_PATH}")
+logging.info(f"[DEBUG] MODEL_PATH = {MODEL_PATH}")
+logging.info(f"[DEBUG] SCALER_PATH = {SCALER_PATH}")
 
 if SCALER is not None:
     try:
@@ -278,7 +278,7 @@ async def predict_next_24h():
                 preds_scaled.append(pred)
                 new_row = current.copy()
                 new_row[0, 6::7] = np.roll(new_row[0, 6::7], -1)
-                new_row[0, -1] = pred
+                new_row[0, 6] = pred
                 current = new_row
 
             # แปลงกลับด้วย scaler
