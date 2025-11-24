@@ -272,7 +272,8 @@ async def predict_next_24h():
             preds_scaled = []
             current = X_recent.copy()
             logging.info("เริ่ม autoregressive prediction...")
-
+            logging.info(f"[DEBUG] INPUT_TO_MODEL (X_recent) = {X_recent}")
+            
             for h in range(24):
                 pred = float(MODEL.predict(current)[0])
                 preds_scaled.append(pred)
