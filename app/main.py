@@ -277,10 +277,10 @@ async def predict_next_24h():
             for h in range(24):
                 pred = float(MODEL.predict(current)[0])
                 preds_scaled.append(pred)
-                new_row = current.copy()
-                new_row[0, 6::7] = np.roll(new_row[0, 6::7], -1)
-                new_row[0, 6] = pred
-                current = new_row
+                # วิธีที่ถูกต้องและอ่านง่ายที่สุด (แนะนำสุด ๆ)
+                pm25_lags = current[0, 6::7].copy()           # ดึง lag ของ PM2.5 ทั้ง 24 ตัวออกมา
+                pm25_lags = np.append(pm25_lags[1:], pred)    # ทิ้งตัวเก่าที่สุด (lag24) แล้วเติมค่าใหม่เข้าไปเป็น lag1
+                current[0, 6::7] = pm25_lags                  # ใส่กลับเข้าไปใน vector
 
             # แปลงกลับด้วย scaler
             dummy = np.zeros((24, 7))
