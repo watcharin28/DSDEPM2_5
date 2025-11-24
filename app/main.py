@@ -32,7 +32,7 @@ FORMATTED_FILE = STAGING_DIR / "formatted_air.csv"
 CLEANED_FILE = STAGING_DIR / "cleaned_air.csv"
 
 MODEL_PATH = BASE_DIR / "models" / "xgboost_pm25_best.json"
-SCALER_PATH = BASE_DIR / "models" / "pm25_scaleres.pkl"
+SCALER_PATH = BASE_DIR / "models" / "pm25_scaler_7feats.pkl"
 
 # ชื่อคอลัมน์ที่ตรงกับ DB จริง ๆ (ต้องใช้ชื่อย่อ)
 FEATURES_ORDER = ["pm10", "ws", "wd", "temp", "rh", "bp", "pm25"]
@@ -225,102 +225,96 @@ async def resync_db():
 # ========================================
 @app.get("/predict")
 async def predict_next_24h():
-    if MODEL is None:
-        raise HTTPException(503, "โมเดลยังไม่พร้อม")
-    if SCALER is None:
-        raise HTTPException(503, "ไม่พบ scaler → พยากรณ์จะแบน!")
+    if MODEL is None or SCALER is None:
+        raise HTTPException(503, "Model/Scaler not loaded")
 
     async with AsyncSessionLocal() as db:
+        # 1. ดึงข้อมูล 48 ชม. ล่าสุด
+        query = text('''
+            SELECT "Date_Time", 
+                   "PM10 (µg/m³)" as pm10, "WS (m/s)" as ws, "WD" as wd, 
+                   "Temp (°C)" as temp, "RH (%)" as rh, "BP (mBar)" as bp,
+                   "PM2.5 (µg/m³)" as pm25
+            FROM air_readings ORDER BY "Date_Time" DESC LIMIT 48
+        ''')
+        result = await db.execute(query)
+        rows = result.fetchall()
+        
+        if not rows:
+             raise HTTPException(503, "No data in DB")
+
+        # เตรียม DataFrame
+        df = pd.DataFrame(rows, columns=["Date_Time", "pm10", "ws", "wd", "temp", "rh", "bp", "pm25"])
+        df["Date_Time"] = pd.to_datetime(df["Date_Time"])
+        df = df.sort_values("Date_Time").reset_index(drop=True)
+        
+        # เก็บค่าปัจจุบัน
+        current_pm25 = float(df["pm25"].iloc[-1])
+        current_aqi = pm25_to_aqi_th(current_pm25)
+
+        # 2. [แก้จุดที่ 1] Scale ข้อมูลดิบ (N, 7) ก่อนสร้าง Lag (ให้เหมือนตอน Train เป๊ะๆ)
+        # FEATURES_ORDER ต้องตรงกับตอน Train: ["PM10", "WS", "WD", "Temp", "RH", "BP", "PM2.5"]
+        data_raw = df[FEATURES_ORDER].values.astype(float)
+        
         try:
-            logging.info("=== เริ่มพยากรณ์ฝุ่น PM2.5 ล่วงหน้า 24 ชั่วโมง ===")
-            query = text('''
-                SELECT "Date_Time",
-                       "PM2.5 (µg/m³)" as pm25,
-                       "PM10 (µg/m³)" as pm10,
-                       "WS (m/s)" as ws,
-                       "WD" as wd,
-                       "Temp (°C)" as temp,
-                       "RH (%)" as rh,
-                       "BP (mBar)" as bp
-                FROM air_readings 
-                ORDER BY "Date_Time" DESC 
-                LIMIT 200
-            ''')
-            result = await db.execute(query)
-            rows = result.fetchall()
-            logging.info(f"ดึงข้อมูลจาก DB สำเร็จ → {len(rows)} แถว")
+            data_scaled = SCALER.transform(data_raw)
+        except ValueError as e:
+            return {"error": f"Scaler mismatch: {e}", "hint": "Check feature count (must be 7)"}
 
-            df = pd.DataFrame(rows, columns=["Date_Time","pm25","pm10","ws","wd","temp","rh","bp"])
-            df["Date_Time"] = pd.to_datetime(df["Date_Time"])
-            df = df.sort_values("Date_Time", ascending=False).head(48)  # เอาล่าสุด 48 ชม. เพื่อความปลอดภัย
-            df = df.sort_values("Date_Time").reset_index(drop=True)     # เรียงเก่า→ใหม่เพื่อสร้าง lag
+        # 3. สร้าง Input ก้อนแรก (24 ชม. ล่าสุด)
+        # Shape: (1, 168) -> Flatten จาก (24, 7)
+        # ต้องมั่นใจว่า data_scaled มีอย่างน้อย 24 แถว
+        if len(data_scaled) < 24:
+             raise HTTPException(503, "Not enough data for lag")
+             
+        # เอา 24 ชม. ล่าสุดมาเป็น window ตั้งต้น
+        current_window = data_scaled[-24:].copy() 
+
+        preds_actual = []
+        hours = []
+        
+        # 4. [แก้จุดที่ 2] ลูปพยากรณ์ที่ถูกต้อง (เลื่อนทั้ง Window)
+        for i in range(24):
+            # Flatten เพื่อเข้าโมเดล (1, 168)
+            X_flat = current_window.flatten().reshape(1, -1)
             
-            current_pm25 = float(df["pm25"].iloc[-1])
-            current_time = df["Date_Time"].iloc[-1].astimezone(TH_TZ)
-            current_aqi = pm25_to_aqi_th(current_pm25)
-            logging.info(f"ใช้ข้อมูลล่าสุด {len(df)} แถว → เวลาล่าสุด: {df['Date_Time'].iloc[-1]}")
-            logging.info(f"PM2.5 ล่าสุดที่ใช้: {current_pm25:.1f} µg/m³")
-            logging.info(f"ค่าฝุ่นปัจจุบัน: {current_pm25:.1f} µg/m³ → AQI {current_aqi['aqi']} ({current_aqi['level']})")
-
-            data = df[FEATURES_ORDER].values.astype(float)  # shape = (n, 7)
-
-            # สร้าง lag 24 ชม. ก่อน → แล้วค่อย scale ทีเดียว
-            X_lag = []
-            for i in range(24, len(data)):
-                window = data[i-24:i]          # (24, 7)
-                X_lag.append(window.flatten()) # → (168,)
-
-            X_lag = np.array(X_lag)  # shape = (n-24, 168)
-
-            # ตอนนี้ค่อย scale → ตรงกับที่ scaler ถูก fit มาเป๊ะ!
-            scaled_lag = SCALER.transform(X_lag)
-            logging.info(f"สเกลข้อมูล lag สำเร็จ → shape: {scaled_lag.shape}")
-
-            # ใช้แถวล่าสุดเป็น input
-            X_recent = scaled_lag[-1:].copy()  # shape = (1, 168)
-            logging.info(f"X_recent shape: {X_recent.shape} → พร้อมเข้าโมเดล")
-
-            # พยากรณ์ 24 ชม.
-            preds_scaled = []
-            current = X_recent.copy()
-            logging.info("เริ่ม autoregressive prediction...")
-            logging.info(f"[DEBUG] INPUT_TO_MODEL (X_recent) = {X_recent}")
+            # พยากรณ์ (ได้ค่า Scaled)
+            pred_scaled = float(MODEL.predict(X_flat)[0])
             
-            for h in range(24):
-                pred = float(MODEL.predict(current)[0])
-                preds_scaled.append(pred)
-                # วิธีที่ถูกต้องและอ่านง่ายที่สุด (แนะนำสุด ๆ)
-                pm25_lags = current[0, 6::7].copy()           # ดึง lag ของ PM2.5 ทั้ง 24 ตัวออกมา
-                pm25_lags = np.append(pm25_lags[1:], pred)    # ทิ้งตัวเก่าที่สุด (lag24) แล้วเติมค่าใหม่เข้าไปเป็น lag1
-                current[0, 6::7] = pm25_lags                  # ใส่กลับเข้าไปใน vector
+            # แปลงค่ากลับเป็นหน่วยจริง
+            dummy_row = np.zeros((1, 7))
+            dummy_row[0, -1] = pred_scaled # ตำแหน่งสุดท้ายคือ PM2.5
+            pred_val = SCALER.inverse_transform(dummy_row)[0, -1]
+            
+            # เก็บผลลัพธ์ (กันค่าติดลบ)
+            final_val = max(0.0, round(float(pred_val), 1))
+            preds_actual.append(final_val)
+            hours.append((datetime.now(TH_TZ) + timedelta(hours=i+1)).strftime("%H:%M"))
+            
+            # อัปเดต Window:
+            # สร้างแถวใหม่: ใช้ Weather เดิม (Persistence) แต่เปลี่ยน PM2.5 เป็นค่าที่เพิ่งพยากรณ์ได้
+            next_row = current_window[-1].copy() 
+            next_row[-1] = pred_scaled  
+            
+            # ตัดแถวบนสุดทิ้ง + ต่อแถวใหม่ด้านล่าง
+            current_window = np.vstack([current_window[1:], next_row])
 
-            # แปลงกลับด้วย scaler
-            dummy_input = np.zeros((24, 168))
-            dummy_input[:, 6::7] = np.array(preds_scaled)[:, np.newaxis]  # broadcast อัตโนมัติ
-            preds_actual = SCALER.inverse_transform(dummy_input)[:, -1]
-            preds_actual = [round(float(x), 1) for x in preds_actual]
+        max_val = max(preds_actual)
+        max_aqi = pm25_to_aqi_th(max_val)
 
-            hours = [(datetime.now(TH_TZ) + timedelta(hours=i+1)).strftime("%H:%M") for i in range(24)]
-            max_val = max(preds_actual)
-            max_aqi = pm25_to_aqi_th(max_val)
-
-            logging.info(f"พยากรณ์สำเร็จ! สูงสุด 24 ชม. = {max_val:.1f} µg/m³ → AQI {max_aqi['aqi']} ({max_aqi['level']})")
-            logging.info("=== พยากรณ์ 24 ชม. เสร็จสิ้น ===\n")
-
-            return {
-                "ค่าฝุ่น pm2.5 ปัจจุบัน": round(current_pm25, 1),
-                "ดัชนีคุณภาพอากาศปัจจุบัน": current_aqi["aqi"],
-                "ระดับคุณภาพอากาศปัจจุบัน": current_aqi["level"],
-                "พยากรณ์ฝุ่น_24ชั่วโมง": dict(zip(hours, preds_actual)),
-                "PM2.5 สูงสุดที่คาดการณ์": round(max_val, 1),
-                "AQI สูงสุดที่คาดการณ์": max_aqi["aqi"],
-                "ระดับโดยรวมจากค่าสูงสุด": max_aqi["level"],
-                "สรุปผล": f"24 ชม. ข้างหน้า ฝุ่นPM2.5สูงสุด {max_val:.1f} µg/m³ → {max_aqi['level']}",
-            }
-
-        except Exception as e:
-            logging.exception("Predict ล้มเหลวอย่างแรง!")
-            raise HTTPException(500, f"พยากรณ์ล้มเหลว: {str(e)}")
+        return {
+            "ค่าฝุ่น pm2.5 ปัจจุบัน": round(current_pm25, 1),
+            "ดัชนีคุณภาพอากาศปัจจุบัน": current_aqi["aqi"],
+            "ระดับคุณภาพอากาศปัจจุบัน": current_aqi["level"],
+            "พยากรณ์ฝุ่น_24ชั่วโมง": dict(zip(hours, preds_actual)),
+            "PM2.5 สูงสุดที่คาดการณ์": max_val,
+            "AQI สูงสุดที่คาดการณ์": max_aqi["aqi"],
+            "ระดับโดยรวมจากค่าสูงสุด": max_aqi["level"],
+            "สรุปผล": f"24 ชม. ข้างหน้า ฝุ่นPM2.5สูงสุด {max_val} µg/m³ → {max_aqi['level']}"
+        }
+        # except Exception as e:
+        #     logging.exception("Predict ล้มเหลวอย่างแรง!")
+        #     raise HTTPException(500, f"พยากรณ์ล้มเหลว: {str(e)}")
 
 # ========================================
 #               HEALTH CHECK
