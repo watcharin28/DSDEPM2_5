@@ -258,16 +258,27 @@ async def predict_next_24h():
             current_pm25 = float(df["pm25"].iloc[-1])
             current_time = df["Date_Time"].iloc[-1].astimezone(TH_TZ)
             current_aqi = pm25_to_aqi_th(current_pm25)
+            logging.info(f"ใช้ข้อมูลล่าสุด {len(df)} แถว → เวลาล่าสุด: {df['Date_Time'].iloc[-1]}")
+            logging.info(f"PM2.5 ล่าสุดที่ใช้: {current_pm25:.1f} µg/m³")
             logging.info(f"ค่าฝุ่นปัจจุบัน: {current_pm25:.1f} µg/m³ → AQI {current_aqi['aqi']} ({current_aqi['level']})")
 
-            # ใช้ scaler จริง
-            data = df[FEATURES_ORDER].values.astype(float)
-            scaled_data = SCALER.transform(data)
-            logging.info(f"สเกลข้อมูลสำเร็จ → shape: {scaled_data.shape}")
+            data = df[FEATURES_ORDER].values.astype(float)  # shape = (n, 7)
 
-            # สร้าง sequence lag 24
-            X_seq = [scaled_data[i-24:i].flatten() for i in range(24, len(scaled_data))]
-            X_recent = np.array([X_seq[-1]])
+            # สร้าง lag 24 ชม. ก่อน → แล้วค่อย scale ทีเดียว
+            X_lag = []
+            for i in range(24, len(data)):
+                window = data[i-24:i]          # (24, 7)
+                X_lag.append(window.flatten()) # → (168,)
+
+            X_lag = np.array(X_lag)  # shape = (n-24, 168)
+
+            # ตอนนี้ค่อย scale → ตรงกับที่ scaler ถูก fit มาเป๊ะ!
+            scaled_lag = SCALER.transform(X_lag)
+            logging.info(f"สเกลข้อมูล lag สำเร็จ → shape: {scaled_lag.shape}")
+
+            # ใช้แถวล่าสุดเป็น input
+            X_recent = scaled_lag[-1:].copy()  # shape = (1, 168)
+            logging.info(f"X_recent shape: {X_recent.shape} → พร้อมเข้าโมเดล")
 
             # พยากรณ์ 24 ชม.
             preds_scaled = []
@@ -284,9 +295,9 @@ async def predict_next_24h():
                 current[0, 6::7] = pm25_lags                  # ใส่กลับเข้าไปใน vector
 
             # แปลงกลับด้วย scaler
-            dummy = np.zeros((24, 7))
-            dummy[:, -1] = preds_scaled
-            preds_actual = SCALER.inverse_transform(dummy)[:, -1]
+            dummy_input = np.zeros((24, 168))
+            dummy_input[:, 6::7] = np.array(preds_scaled)[:, np.newaxis]  # broadcast อัตโนมัติ
+            preds_actual = SCALER.inverse_transform(dummy_input)[:, -1]
             preds_actual = [round(float(x), 1) for x in preds_actual]
 
             hours = [(datetime.now(TH_TZ) + timedelta(hours=i+1)).strftime("%H:%M") for i in range(24)]
