@@ -254,7 +254,7 @@ async def predict_next_24h():
             df["Date_Time"] = pd.to_datetime(df["Date_Time"])
             df = df.sort_values("Date_Time", ascending=False).head(48)  # เอาล่าสุด 48 ชม. เพื่อความปลอดภัย
             df = df.sort_values("Date_Time").reset_index(drop=True)     # เรียงเก่า→ใหม่เพื่อสร้าง lag
-
+            
             current_pm25 = float(df["pm25"].iloc[-1])
             current_time = df["Date_Time"].iloc[-1].astimezone(TH_TZ)
             current_aqi = pm25_to_aqi_th(current_pm25)
