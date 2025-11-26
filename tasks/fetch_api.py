@@ -41,7 +41,7 @@ STAGING_DIR = Path("data/staging")
 STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
 MASTER_FILE = STAGING_DIR / "raw_airbkk.csv"      # raw จาก API
-CLEAN_FILE  = STAGING_DIR / "clean_airbkk.csv"    # ไฟล์ที่คลีนแล้ว (ใช้เช็คช่องโหว่เวลา)
+CLEAN_FILE  = STAGING_DIR / "clean_airbkk.csv"    
 LOCK_FILE   = STAGING_DIR / ".airbkk_lock"
 LOG_FILE    = STAGING_DIR / "capture.log"
 
@@ -222,7 +222,7 @@ def append_to_master_always_overwrite(df_new, master_file=MASTER_FILE, verbose=T
             pass
 
 
-async def fill_missing_hours(lookback_hours=48):
+async def fill_missing_hours(lookback_hours=24):
     if shutdown_event.is_set():
         return 0
 
@@ -242,42 +242,51 @@ async def fill_missing_hours(lookback_hours=48):
     except EmptyDataError:
         df_ref = pd.DataFrame()
 
-    # ------------------- หา start_fill จากไฟล์อ้างอิง -------------------
+    # ------------------- เตรียมช่วงเวลา (window) ที่จะเช็ค -------------------
+    now = datetime.now(ZoneInfo(TZ)).replace(minute=0, second=0, microsecond=0)
+    start_fill = now - timedelta(hours=lookback_hours)
+    end_fill = now
+
     if df_ref.empty or "Date_Time" not in df_ref.columns:
-        # ไม่มีข้อมูลเลย → ย้อนหลังจากตอนนี้
-        start_fill = datetime.now(ZoneInfo(TZ)) - timedelta(hours=lookback_hours)
-        start_fill = start_fill.replace(minute=0, second=0, microsecond=0)
+        # ไม่มีข้อมูล → ไม่ต้อง filter อะไร ใช้ df_ref ว่าง ๆ ไปเลย
+        df_ref = pd.DataFrame(columns=["dt"])
     else:
+        # แปลง Date_Time เป็น datetime แล้วจัดการ timezone ให้ตรงกัน
         dt = _parse_date_time_be_aware(df_ref["Date_Time"])
+
+        # กันเคสที่ _parse_date_time_be_aware คืนค่าแบบไม่มี tz
+        try:
+            tzinfo = dt.dt.tz
+        except AttributeError:
+            tzinfo = None
+
+        if tzinfo is None:
+            # ถ้าไม่มี timezone ให้ใส่ Asia/Bangkok ให้เลย
+            dt = dt.dt.tz_localize(ZoneInfo(TZ))
+        else:
+            # ถ้ามี timezone อยู่แล้วก็แปลงให้เป็น Asia/Bangkok
+            dt = dt.dt.tz_convert(ZoneInfo(TZ))
+
         df_ref["dt"] = dt
         df_ref = df_ref.dropna(subset=["dt"])
 
-        if df_ref.empty:
-            logger.warning("parse Date_Time จากไฟล์อ้างอิงไม่ได้ → ข้ามการเติมย้อนหลัง")
-            return 0
+        # ตัดข้อมูลให้เหลือเฉพาะในช่วง 48 ชม.ล่าสุด
+        if not df_ref.empty:
+            df_ref = df_ref[(df_ref["dt"] >= start_fill) & (df_ref["dt"] <= end_fill)]
 
-        latest = df_ref["dt"].max()
-        start_fill = latest.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-
-    now = datetime.now(ZoneInfo(TZ))
-    end_fill = now.replace(minute=0, second=0, microsecond=0)
-
-    if start_fill >= end_fill:
-        logger.info("ข้อมูลครบแล้ว (จากไฟล์อ้างอิง)")
-        return 0
-
-    # ------------------- สร้าง list ชั่วโมงที่ควรมี -------------------
+    # ------------------- สร้าง list ชั่วโมงที่ "ควรมี" -------------------
     expected = pd.date_range(start_fill, end_fill, freq="h", tz=ZoneInfo(TZ))
-    existing = set(df_ref["dt"].dt.floor("h")) if "dt" in df_ref.columns and not df_ref.empty else set()
+
+    existing = set(df_ref["dt"].dt.floor("h")) if not df_ref.empty else set()
     missing_hours = [dt for dt in expected if dt.floor("h") not in existing]
 
     if not missing_hours:
-        logger.info("ไม่มีชั่วโมงที่ขาด (จากไฟล์อ้างอิง)")
+        logger.info("ไม่มีชั่วโมงที่ขาด (ในช่วง lookback)")
         return 0
 
     logger.info(f"พบ {len(missing_hours)} ชั่วโมงที่ขาด → ดึงใหม่")
 
-    # ------------------- เติมย้อนหลัง: เขียนลง MASTER_FILE (raw) เหมือนเดิม -------------------
+    # ------------------- ดึงย้อนหลังแล้วเขียนลง MASTER_FILE -------------------
     total_added = 0
     for dt in missing_hours:
         if shutdown_event.is_set():
@@ -287,7 +296,6 @@ async def fill_missing_hours(lookback_hours=48):
             arr, _, _ = fetch_api_data(start=dt, end=dt + timedelta(hours=1))
             if arr:
                 df_new = arr_to_df_raw(arr)
-                # ไม่อยากให้ spam log → verbose=False
                 added = append_to_master_always_overwrite(df_new, verbose=False)
                 total_added += added
                 logger.debug(f"เติม {dt.strftime('%Y-%m-%d %H:%M')} → +{added}")
@@ -299,6 +307,7 @@ async def fill_missing_hours(lookback_hours=48):
 
     logger.info(f"เติมข้อมูลย้อนหลังเสร็จ: +{total_added} แถว จาก {len(missing_hours)} ชั่วโมง")
     return total_added
+
 
 
 def main():

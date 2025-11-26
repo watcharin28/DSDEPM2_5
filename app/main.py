@@ -30,8 +30,8 @@ STAGING_DIR.mkdir(parents=True, exist_ok=True)
 FORMATTED_FILE = STAGING_DIR / "formatted_air.csv"
 CLEANED_FILE = STAGING_DIR / "cleaned_air.csv"
 
-MODEL_PATH = BASE_DIR / "models" / "xgboost_pm25_best.json"
-SCALER_PATH = BASE_DIR / "models" / "pm25_scaler_7feats.pkl"
+MODEL_PATH = BASE_DIR / "models" / "xgb_bayes_finetunedss.json" 
+SCALER_PATH = BASE_DIR / "models" / "pm25_scaler_7featsV2.pkl" 
 
 # ชื่อคอลัมน์ที่ตรงกับ DB จริง ๆ (ต้องใช้ชื่อย่อ)
 FEATURES_ORDER = ["pm10", "ws", "wd", "temp", "rh", "bp", "pm25"]

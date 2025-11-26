@@ -59,3 +59,7 @@ Traceback (most recent call last):
   File "C:\Pm2_5\app\main.py", line 42, in run_pipeline
     clean_and_save()
 TypeError: clean_and_save() missing 1 required positional argument: 'df'
+2025-11-26 20:47:07,636 INFO: ตั้งค่า signal handler สำเร็จ
+2025-11-26 20:47:08,366 INFO: ดึง 2025-11-26 19:00:00+07:00 - 2025-11-26 20:00:00+07:00 → 2 แถว
+2025-11-26 20:47:08,366 INFO: อัปเดต raw file สำเร็จ → อัปเดต/เพิ่ม 2 แถว (ทับค่าจริงทันที)
+2025-11-26 20:47:08,366 INFO: สำเร็จ: อัปเดต/เพิ่ม 2 แถว
