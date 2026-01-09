@@ -28,6 +28,8 @@ logging.basicConfig(
 logger = logging.getLogger("load_to_db")
 
 # ------------------- MAIN -------------------
+
+
 async def load_and_backup(df: pd.DataFrame, force_resync: bool = False) -> int:
     """
     รับ df → แปลงเวลา → ใส่ DB → backup → คืนจำนวนแถว
@@ -91,7 +93,7 @@ async def load_and_backup(df: pd.DataFrame, force_resync: bool = False) -> int:
         # อัพเดท latest.csv อย่างปลอดภัย
         temp_file = BACKUP_DIR / "latest_temp.csv"
         df.to_csv(temp_file, index=False, encoding="utf-8-sig")
-        
+
         if LATEST_BACKUP.exists():
             LATEST_BACKUP.unlink()  # ลบเก่า
         temp_file.replace(LATEST_BACKUP)  # ย้าย (atomic)
