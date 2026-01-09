@@ -70,8 +70,8 @@ def clean_and_save(df: pd.DataFrame) -> pd.DataFrame:
     df_cleaned.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
     logger.info(f"บันทึกสำเร็จ: {OUTPUT_FILE} ({len(df_cleaned)} แถว)")
 
-    # แสดง 10 ล่าสุด
+    # แสดง 10 แถวล่าสุด
     latest10 = df_cleaned.sort_values('Date_Time', ascending=False).head(10)
     logger.info("\nล่าสุด 10 แถว:\n" + latest10.to_string(index=False))
 
-    return df_cleaned  # คืน df ที่ clean แล้ว
+    return df_cleaned  

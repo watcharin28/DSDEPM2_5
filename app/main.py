@@ -30,8 +30,8 @@ STAGING_DIR.mkdir(parents=True, exist_ok=True)
 FORMATTED_FILE = STAGING_DIR / "formatted_air.csv"
 CLEANED_FILE = STAGING_DIR / "cleaned_air.csv"
 
-MODEL_PATH = BASE_DIR / "models" / "xgb_bayes_finetunedss.json" 
-SCALER_PATH = BASE_DIR / "models" / "pm25_scaler_7featsV2.pkl" 
+MODEL_PATH = BASE_DIR / "models" / "xgb_bayes_finetunedss.json"
+SCALER_PATH = BASE_DIR / "models" / "pm25_scaler_7featsV2.pkl"
 
 # ชื่อคอลัมน์ที่ตรงกับ DB จริง ๆ (ต้องใช้ชื่อย่อ)
 FEATURES_ORDER = ["pm10", "ws", "wd", "temp", "rh", "bp", "pm25"]
@@ -48,7 +48,8 @@ if MODEL_PATH.exists():
         MODEL = xgb.XGBRegressor()
         MODEL.load_model(str(MODEL_PATH))
         MODEL_EXPECTED_N = getattr(MODEL, "n_features_in_", None) or 168
-        logging.info(f"[MODEL] โหลดสำเร็จ → คาดหวัง {MODEL_EXPECTED_N} features")
+        logging.info(
+            f"[MODEL] โหลดสำเร็จ → คาดหวัง {MODEL_EXPECTED_N} features")
     except Exception as e:
         logging.exception("โหลดโมเดลล้มเหลว!")
         MODEL = None
@@ -58,7 +59,8 @@ else:
 if SCALER_PATH.exists():
     try:
         SCALER = joblib.load(SCALER_PATH)
-        logging.info(f"[SCALER] โหลดสำเร็จ → {SCALER.n_features_in_} features (ต้องเป็น 168)")
+        logging.info(
+            f"[SCALER] โหลดสำเร็จ → {SCALER.n_features_in_} features (ต้องเป็น 168)")
     except Exception as e:
         logging.error(f"โหลด scaler ล้มเหลว: {e}")
 else:
@@ -70,23 +72,27 @@ logging.info(f"[DEBUG] SCALER_PATH = {SCALER_PATH}")
 if SCALER is not None:
     try:
         logging.info(f"[DEBUG] SCALER class = {SCALER.__class__.__name__}")
-        logging.info(f"[DEBUG] SCALER.n_features_in_ = {SCALER.n_features_in_}")
+        logging.info(
+            f"[DEBUG] SCALER.n_features_in_ = {SCALER.n_features_in_}")
     except Exception as e:
         logging.info(f"[DEBUG] อ่าน n_features_in_ ไม่ได้: {e}")
 
     # ถ้าเป็น MinMaxScaler
     try:
         if hasattr(SCALER, "feature_range"):
-            logging.info(f"[DEBUG] MinMaxScaler.feature_range = {SCALER.feature_range}")
+            logging.info(
+                f"[DEBUG] MinMaxScaler.feature_range = {SCALER.feature_range}")
         if hasattr(SCALER, "data_min_"):
-            logging.info(f"[DEBUG] MinMaxScaler.data_min_ (last feature) = {SCALER.data_min_[-1]:.6f}")
+            logging.info(
+                f"[DEBUG] MinMaxScaler.data_min_ (last feature) = {SCALER.data_min_[-1]:.6f}")
         if hasattr(SCALER, "data_max_"):
-            logging.info(f"[DEBUG] MinMaxScaler.data_max_ (last feature) = {SCALER.data_max_[-1]:.6f}")
+            logging.info(
+                f"[DEBUG] MinMaxScaler.data_max_ (last feature) = {SCALER.data_max_[-1]:.6f}")
     except Exception as e:
         logging.info(f"[DEBUG] อ่านข้อมูล MinMaxScaler ไม่ได้: {e}")
 else:
     logging.warning("[DEBUG] SCALER ยังไม่ถูกโหลด")
-import hashlib
+
 
 def md5(path):
     h = hashlib.md5()
@@ -94,6 +100,7 @@ def md5(path):
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
+
 
 print("MODEL MD5:", md5(MODEL_PATH))
 print("SCALER MD5:", md5(SCALER_PATH))
@@ -119,6 +126,7 @@ def pm25_to_aqi_th(pm25: float) -> dict:
             return {"aqi": int(round(aqi)), "level": level}
     return {"aqi": 300, "level": "มีผลกระทบต่อสุขภาพ"}
 
+
 # ========================================
 #               LOGGING
 # ========================================
@@ -140,6 +148,8 @@ app = FastAPI(
 # ========================================
 #               PIPELINE & SCHEDULER
 # ========================================
+
+
 async def run_pipeline():
     logging.info("=== PIPELINE START ===")
     try:
@@ -164,12 +174,16 @@ async def run_pipeline():
     logging.info("=== PIPELINE END ===\n")
 
 scheduler = AsyncIOScheduler(timezone="Asia/Bangkok")
-scheduler.add_job(run_pipeline, "cron", minute=5, hour="*", id="airbkk_pipeline_5", replace_existing=True)
-scheduler.add_job(run_pipeline, "cron", minute=15, hour="*", id="airbkk_pipeline_15", replace_existing=True)
+scheduler.add_job(run_pipeline, "cron", minute=5, hour="*",
+                  id="airbkk_pipeline_5", replace_existing=True)
+scheduler.add_job(run_pipeline, "cron", minute=15, hour="*",
+                  id="airbkk_pipeline_15", replace_existing=True)
 
 # ========================================
 #               DATABASE DEPENDENCY
 # ========================================
+
+
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
@@ -177,6 +191,8 @@ async def get_db():
 # ========================================
 #               STARTUP
 # ========================================
+
+
 @app.on_event("startup")
 async def startup_event():
     try:
@@ -190,6 +206,8 @@ async def startup_event():
 # ========================================
 #               ENDPOINTS
 # ========================================
+
+
 @app.get("/")
 async def root():
     return {
@@ -199,10 +217,12 @@ async def root():
         "endpoints": {"/latest": "ข้อมูลล่าสุด", "/predict": "พยากรณ์ 24 ชม.", "/resync": "รีโหลด DB"}
     }
 
+
 @app.get("/latest")
 async def latest_readings(db=Depends(get_db)):
     try:
-        query = text('SELECT * FROM air_readings ORDER BY "Date_Time" DESC LIMIT 10')
+        query = text(
+            'SELECT * FROM air_readings ORDER BY "Date_Time" DESC LIMIT 10')
         result = await db.execute(query)
         rows = result.fetchall()
         data = [dict(row._mapping) for row in rows]
@@ -210,6 +230,7 @@ async def latest_readings(db=Depends(get_db)):
     except Exception as e:
         logging.exception("latest_readings error")
         raise HTTPException(500, detail=str(e))
+
 
 @app.post("/resync")
 async def resync_db():
@@ -222,6 +243,8 @@ async def resync_db():
 # ========================================
 #               PREDICT 24 ชม. (เวอร์ชันสมบูรณ์ + log เต็ม)
 # ========================================
+
+
 @app.get("/predict")
 async def predict_next_24h():
     if MODEL is None or SCALER is None:
@@ -239,7 +262,7 @@ async def predict_next_24h():
         ''')
         result = await db.execute(query)
         rows = result.fetchall()
-        
+
         if len(rows) < 24:
             raise HTTPException(503, "ข้อมูลไม่พอ 24 ชม.")
 
@@ -279,7 +302,8 @@ async def predict_next_24h():
 
         # สร้าง timestamp
         now = datetime.now(TH_TZ).replace(minute=0, second=0, microsecond=0)
-        hours = [(now + timedelta(hours=i+1)).strftime("%H:%M") for i in range(24)]
+        hours = [(now + timedelta(hours=i+1)).strftime("%H:%M")
+                 for i in range(24)]
 
         max_val = max(predictions)
         max_aqi = pm25_to_aqi_th(max_val)
@@ -301,6 +325,8 @@ async def predict_next_24h():
 # ========================================
 #               HEALTH CHECK
 # ========================================
+
+
 @app.get("/health")
 async def health():
     rows = len(pd.read_csv(CLEANED_FILE)) if CLEANED_FILE.exists() else 0
@@ -311,34 +337,36 @@ async def health():
         "data_rows": rows,
         "timestamp": datetime.now(TH_TZ).isoformat()
     }
+
+
 @app.get("/debug-scaler")
 async def debug_scaler_info():
     """ดูข้อมูล scaler ที่โหลดไว้"""
     if SCALER is None:
         return {"error": "Scaler not loaded"}
-    
+
     info = {
         "class": SCALER.__class__.__name__,
         "n_features": SCALER.n_features_in_,
         "scaler_md5": md5(SCALER_PATH),
         "model_md5": md5(MODEL_PATH),
     }
-    
+
     if hasattr(SCALER, 'data_min_'):
         info["pm25_data_min"] = float(SCALER.data_min_[6])
         info["pm25_data_max"] = float(SCALER.data_max_[6])
         info["pm25_scale"] = float(SCALER.scale_[6])
-    
+
     # ทดสอบ transform
     test = np.array([[50, 2, 180, 30, 60, 1010, 10.5]])
     scaled = SCALER.transform(test)
     back = SCALER.inverse_transform(scaled)
-    
+
     info["test_transform"] = {
         "input_pm25": 10.5,
         "scaled_pm25": float(scaled[0, 6]),
         "back_pm25": float(back[0, 6]),
         "error": float(abs(back[0, 6] - 10.5))
     }
-    
+
     return info
